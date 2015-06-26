@@ -6,6 +6,8 @@ var express = require('express'),
 var app = express()
 app.use(morgan('combined'))
 
+app.use(express.static(path.join(__dirname, 'front')))
+
 app.use('/ratings', require('./server/routes/ratings.js'))
 
 // If a request is unhandled at this point, assume its 404
