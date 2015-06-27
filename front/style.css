@@ -1,0 +1,31 @@
+body {
+    margin: 40px auto 80px;
+    max-width: 900px;
+    font-size: 14px;
+    font-family: "Helvetica Neue", Helvetica;
+}
+
+#chart {
+    padding: 10px;
+}
+
+.line {
+    stroke: #808080;
+    stroke-opacity: 0.75;
+    stroke-width: 0.3px;
+}
+
+.axis-line {
+    stroke: #808080;
+    stroke-width: 1px;
+}
+
+.legend-title {
+    font-size: 12px;
+    fill: #404040;
+}
+
+.legend-entry {
+    font-size: 11px;
+    fill: #737373;
+}
