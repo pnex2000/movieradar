@@ -9,15 +9,24 @@ body {
     padding: 10px;
 }
 
-.line {
+.level-line {
     stroke: #808080;
     stroke-opacity: 0.75;
     stroke-width: 0.3px;
 }
 
+.level-title {
+    font-size: 10px;
+    fill: #737373;
+}
+
 .axis-line {
     stroke: #808080;
     stroke-width: 1px;
+}
+
+.axis-title {
+    font-size: 11px;
 }
 
 .legend-title {

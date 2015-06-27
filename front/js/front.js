@@ -27,12 +27,12 @@ function drawChart(ratings) {
     {axis:'Characters', value:rating.ratingCharacters/10}
   ])
 
-  RadarChart.draw(parentSelector,
+  RadarChart().draw(parentSelector,
                   data,
                   {
                     w: width,
                     h: height,
-                    maxValue: 0.6,
+                    maxValue: 1,
                     levels: 6,
                     ExtraWidthX: 300
                   })
