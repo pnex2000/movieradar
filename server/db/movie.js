@@ -4,7 +4,7 @@ var pgrm = require('pg-using-bluebird')({dbUrl: 'postgres://localhost/movieradar
 
 function getRating(raterName, movieName) {
   return pgrm.queryAsync(
-    'select rating_date, rating_plot, rating_script, rating_hotness, rating_sound, rating_visuality, rating_characters from rating natural join rater natural join movie where rater_name=$1 and movie_name=$2', [raterName, movieName])
+    'select rater_name, movie_name, rating_date, rating_plot, rating_script, rating_hotness, rating_sound, rating_visuality, rating_characters from rating natural join rater natural join movie where rater_name=$1 and movie_name=$2', [raterName, movieName])
     .then(function(rows) {
       return rows.map(propertiesToCamel)
     })
