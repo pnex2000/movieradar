@@ -12,7 +12,6 @@ var RadarChart = function () {
       tipRadius: 6,
       w: 600,
       h: 600,
-      factor: 1,
       factorLegend: .85,
       levels: 4,
       maxValue: 1,
@@ -37,7 +36,7 @@ var RadarChart = function () {
 
       var allAxis = d[0].map(i => i.axis)
       var total = allAxis.length
-      var radius = cfg.factor * Math.min(cfg.w/2, cfg.h/2)
+      var radius = Math.min(cfg.w/2, cfg.h/2)
       var Format = d3.format('%')
       d3.select(id).select("svg").remove()
 
@@ -51,24 +50,24 @@ var RadarChart = function () {
 
       // tangential level segments
       for(var j=0; j<cfg.levels; j++) {
-        var levelFactor = cfg.factor*radius*((j+1)/cfg.levels);
+        var levelFactor = radius*((j+1)/cfg.levels);
         g.selectAll(".levels")
 	  .data(allAxis)
 	  .enter()
 	  .append("svg:line")
-	  .attr("x1", function(d, i){return levelFactor*(1-cfg.factor*Math.sin(i*pi2/total));})
-	  .attr("y1", function(d, i){return levelFactor*(1-cfg.factor*Math.cos(i*pi2/total));})
-	  .attr("x2", function(d, i){return levelFactor*(1-cfg.factor*Math.sin((i+1)*pi2/total));})
-	  .attr("y2", function(d, i){return levelFactor*(1-cfg.factor*Math.cos((i+1)*pi2/total));})
+	  .attr("x1", function(d, i){return levelFactor*(1-Math.sin(i*pi2/total));})
+	  .attr("y1", function(d, i){return levelFactor*(1-Math.cos(i*pi2/total));})
+	  .attr("x2", function(d, i){return levelFactor*(1-Math.sin((i+1)*pi2/total));})
+	  .attr("y2", function(d, i){return levelFactor*(1-Math.cos((i+1)*pi2/total));})
 	  .attr("class", "level-line")
 	  .attr("transform", "translate(" + (cfg.w/2-levelFactor) + ", " + (cfg.h/2-levelFactor) + ")");
       }
 
       // level segment labels
       for(var j=0; j<cfg.levels; j++) {
-        var levelFactor = cfg.factor*radius*((j+1)/cfg.levels);
+        var levelFactor = radius*((j+1)/cfg.levels);
         g.append("svg:text")
-	  .attr("x", function(d){return levelFactor*(1-cfg.factor*Math.sin(0));})
+	  .attr("x", function(d){return levelFactor*(1-Math.sin(0));})
 	  .attr("y", 0)
 	  .attr("class", "level-title")
 	  .attr("transform", "translate(" + (cfg.w/2-levelFactor + 5) + ", " + (cfg.h/2-levelFactor) + ")")
@@ -84,8 +83,8 @@ var RadarChart = function () {
       axis.append("line")
         .attr("x1", cfg.w/2)
         .attr("y1", cfg.h/2)
-        .attr("x2", function(d, i){return cfg.w/2*(1-cfg.factor*Math.sin(i*pi2/total));})
-        .attr("y2", function(d, i){return cfg.h/2*(1-cfg.factor*Math.cos(i*pi2/total));})
+        .attr("x2", function(d, i){return cfg.w/2*(1-Math.sin(i*pi2/total));})
+        .attr("y2", function(d, i){return cfg.h/2*(1-Math.cos(i*pi2/total));})
         .attr("class", "axis-line")
 
       axis.append("text")
@@ -104,8 +103,8 @@ var RadarChart = function () {
         g.selectAll(".nodes")
 	  .data(y, function(j, i){
 	    dataValues.push([
-	      cfg.w/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*cfg.factor*Math.sin(i*pi2/total)),
-	      cfg.h/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*cfg.factor*Math.cos(i*pi2/total))
+	      cfg.w/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*Math.sin(i*pi2/total)),
+	      cfg.h/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*Math.cos(i*pi2/total))
 	    ]);
 	  });
         dataValues.push(dataValues[0]);
@@ -152,13 +151,13 @@ var RadarChart = function () {
 	  .attr("alt", function(j){return Math.max(j.value, 0)})
 	  .attr("cx", function(j, i){
 	    dataValues.push([
-	      cfg.w/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*cfg.factor*Math.sin(i*pi2/total)),
-	      cfg.h/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*cfg.factor*Math.cos(i*pi2/total))
+	      cfg.w/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*Math.sin(i*pi2/total)),
+	      cfg.h/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*Math.cos(i*pi2/total))
 	    ]);
-	    return cfg.w/2*(1-(Math.max(j.value, 0)/cfg.maxValue)*cfg.factor*Math.sin(i*pi2/total));
+	    return cfg.w/2*(1-(Math.max(j.value, 0)/cfg.maxValue)*Math.sin(i*pi2/total));
 	  })
 	  .attr("cy", function(j, i){
-	    return cfg.h/2*(1-(Math.max(j.value, 0)/cfg.maxValue)*cfg.factor*Math.cos(i*pi2/total));
+	    return cfg.h/2*(1-(Math.max(j.value, 0)/cfg.maxValue)*Math.cos(i*pi2/total));
 	  })
 	  .attr("data-id", function(j){return j.axis})
 	  .style("fill", cfg.color(series)).style("fill-opacity", .9)
