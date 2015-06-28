@@ -5,22 +5,20 @@
 
 var RadarChart = function () {
 
+  const pi2 = 2 * Math.PI
+
   function buildConfig(customCfg) {
     var cfg = {
-      radius: 5,
+      tipRadius: 6,
       w: 600,
       h: 600,
       factor: 1,
       factorLegend: .85,
-      levels: 3,
+      levels: 4,
       maxValue: 1,
-      radians: 2 * Math.PI,
       opacityArea: 0.5,
-      ToRight: 5,
-      TranslateX: 80,
-      TranslateY: 30,
-      ExtraWidthX: 100,
-      ExtraWidthY: 100,
+      marginX: 70,
+      marginY: 70,
       color: d3.scale.category10()
     }
     if ('undefined' !== typeof customCfg) {
@@ -43,12 +41,13 @@ var RadarChart = function () {
       var Format = d3.format('%')
       d3.select(id).select("svg").remove()
 
+      // Add padding and translate to make space for legends
       var g = d3.select(id)
 	    .append("svg")
-	    .attr("width", cfg.w + cfg.ExtraWidthX)
-	    .attr("height", cfg.h + cfg.ExtraWidthY)
+	    .attr("width", cfg.w + cfg.marginX)
+	    .attr("height", cfg.h + cfg.marginY)
 	    .append("g")
-	    .attr("transform", "translate(" + cfg.TranslateX + "," + cfg.TranslateY + ")")
+	    .attr("transform", "translate("+ cfg.marginX/2 +","+ cfg.marginY/2 +")")
 
       // tangential level segments
       for(var j=0; j<cfg.levels; j++) {
@@ -57,10 +56,10 @@ var RadarChart = function () {
 	  .data(allAxis)
 	  .enter()
 	  .append("svg:line")
-	  .attr("x1", function(d, i){return levelFactor*(1-cfg.factor*Math.sin(i*cfg.radians/total));})
-	  .attr("y1", function(d, i){return levelFactor*(1-cfg.factor*Math.cos(i*cfg.radians/total));})
-	  .attr("x2", function(d, i){return levelFactor*(1-cfg.factor*Math.sin((i+1)*cfg.radians/total));})
-	  .attr("y2", function(d, i){return levelFactor*(1-cfg.factor*Math.cos((i+1)*cfg.radians/total));})
+	  .attr("x1", function(d, i){return levelFactor*(1-cfg.factor*Math.sin(i*pi2/total));})
+	  .attr("y1", function(d, i){return levelFactor*(1-cfg.factor*Math.cos(i*pi2/total));})
+	  .attr("x2", function(d, i){return levelFactor*(1-cfg.factor*Math.sin((i+1)*pi2/total));})
+	  .attr("y2", function(d, i){return levelFactor*(1-cfg.factor*Math.cos((i+1)*pi2/total));})
 	  .attr("class", "level-line")
 	  .attr("transform", "translate(" + (cfg.w/2-levelFactor) + ", " + (cfg.h/2-levelFactor) + ")");
       }
@@ -72,7 +71,7 @@ var RadarChart = function () {
 	  .attr("x", function(d){return levelFactor*(1-cfg.factor*Math.sin(0));})
 	  .attr("y", 0)
 	  .attr("class", "level-title")
-	  .attr("transform", "translate(" + (cfg.w/2-levelFactor + cfg.ToRight) + ", " + (cfg.h/2-levelFactor) + ")")
+	  .attr("transform", "translate(" + (cfg.w/2-levelFactor + 5) + ", " + (cfg.h/2-levelFactor) + ")")
 	  .text(Format((j+1)*cfg.maxValue/cfg.levels));
       }
 
@@ -85,8 +84,8 @@ var RadarChart = function () {
       axis.append("line")
         .attr("x1", cfg.w/2)
         .attr("y1", cfg.h/2)
-        .attr("x2", function(d, i){return cfg.w/2*(1-cfg.factor*Math.sin(i*cfg.radians/total));})
-        .attr("y2", function(d, i){return cfg.h/2*(1-cfg.factor*Math.cos(i*cfg.radians/total));})
+        .attr("x2", function(d, i){return cfg.w/2*(1-cfg.factor*Math.sin(i*pi2/total));})
+        .attr("y2", function(d, i){return cfg.h/2*(1-cfg.factor*Math.cos(i*pi2/total));})
         .attr("class", "axis-line")
 
       axis.append("text")
@@ -95,8 +94,8 @@ var RadarChart = function () {
         .attr("text-anchor", "middle")
         .attr("dy", "1.5em")
         .attr("transform", function(d, i){return "translate(0, -10)"})
-        .attr("x", function(d, i){return cfg.w/2*(1-cfg.factorLegend*Math.sin(i*cfg.radians/total))-60*Math.sin(i*cfg.radians/total);})
-        .attr("y", function(d, i){return cfg.h/2*(1-Math.cos(i*cfg.radians/total))-20*Math.cos(i*cfg.radians/total);});
+        .attr("x", function(d, i){return cfg.w/2*(1-cfg.factorLegend*Math.sin(i*pi2/total))-60*Math.sin(i*pi2/total);})
+        .attr("y", function(d, i){return cfg.h/2*(1-Math.cos(i*pi2/total))-20*Math.cos(i*pi2/total);});
 
       var series = 0;
 
@@ -105,8 +104,8 @@ var RadarChart = function () {
         g.selectAll(".nodes")
 	  .data(y, function(j, i){
 	    dataValues.push([
-	      cfg.w/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*cfg.factor*Math.sin(i*cfg.radians/total)),
-	      cfg.h/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*cfg.factor*Math.cos(i*cfg.radians/total))
+	      cfg.w/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*cfg.factor*Math.sin(i*pi2/total)),
+	      cfg.h/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*cfg.factor*Math.cos(i*pi2/total))
 	    ]);
 	  });
         dataValues.push(dataValues[0]);
@@ -149,17 +148,17 @@ var RadarChart = function () {
 	  .data(y).enter()
 	  .append("svg:circle")
 	  .attr("class", "radar-chart-serie"+series)
-	  .attr('r', cfg.radius)
+	  .attr('r', cfg.tipRadius)
 	  .attr("alt", function(j){return Math.max(j.value, 0)})
 	  .attr("cx", function(j, i){
 	    dataValues.push([
-	      cfg.w/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*cfg.factor*Math.sin(i*cfg.radians/total)),
-	      cfg.h/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*cfg.factor*Math.cos(i*cfg.radians/total))
+	      cfg.w/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*cfg.factor*Math.sin(i*pi2/total)),
+	      cfg.h/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*cfg.factor*Math.cos(i*pi2/total))
 	    ]);
-	    return cfg.w/2*(1-(Math.max(j.value, 0)/cfg.maxValue)*cfg.factor*Math.sin(i*cfg.radians/total));
+	    return cfg.w/2*(1-(Math.max(j.value, 0)/cfg.maxValue)*cfg.factor*Math.sin(i*pi2/total));
 	  })
 	  .attr("cy", function(j, i){
-	    return cfg.h/2*(1-(Math.max(j.value, 0)/cfg.maxValue)*cfg.factor*Math.cos(i*cfg.radians/total));
+	    return cfg.h/2*(1-(Math.max(j.value, 0)/cfg.maxValue)*cfg.factor*Math.cos(i*pi2/total));
 	  })
 	  .attr("data-id", function(j){return j.axis})
 	  .style("fill", cfg.color(series)).style("fill-opacity", .9)

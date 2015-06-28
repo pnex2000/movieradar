@@ -33,8 +33,7 @@ function drawChart(ratings) {
                     w: width,
                     h: height,
                     maxValue: 1,
-                    levels: 6,
-                    ExtraWidthX: 300
+                    levels: 6
                   })
 
   drawLegend(parentSelector, legendTitles, width)
