@@ -6,6 +6,7 @@
 var RadarChart = function () {
 
   const pi2 = 2 * Math.PI
+  const Format = d3.format('%')
 
   function buildConfig(customCfg) {
     var cfg = {
@@ -30,6 +31,36 @@ var RadarChart = function () {
     return cfg
   }
 
+  function drawLevelLines(g, levels, radius, axisTitles) {
+    const axisCount = axisTitles.length
+    for (var j = 0; j < levels; j++) {
+      var distanceFromOrigin = radius * ((j+1)/levels)
+      g.selectAll(".levels")
+	.data(axisTitles)
+	.enter()
+	.append("line")
+	.attr("x1", (d, i) => distanceFromOrigin*(1-Math.sin(i*pi2/axisCount)))
+	.attr("y1", (d, i) => distanceFromOrigin*(1-Math.cos(i*pi2/axisCount)))
+	.attr("x2", (d, i) => distanceFromOrigin*(1-Math.sin((i+1)*pi2/axisCount)))
+	.attr("y2", (d, i) => distanceFromOrigin*(1-Math.cos((i+1)*pi2/axisCount)))
+	.attr("class", "level-line")
+	.attr("transform", "translate(" + (radius-distanceFromOrigin) + ", " + (radius-distanceFromOrigin) + ")");
+    }
+  }
+
+  function drawLevelTitles(g, levels, radius, maxValue) {
+    const leftPadding = 5
+    for (var j = 0; j < levels; j++) {
+      var levelFactor = radius*((j+1)/levels)
+      g.append("text")
+	.attr("x", levelFactor)
+	.attr("y", 0)
+	.attr("class", "level-title")
+	.attr("transform", "translate(" + (radius-levelFactor + leftPadding) + ", " + (radius-levelFactor) + ")")
+	.text(Format((j+1) * maxValue/levels))
+    }
+  }
+
   return {
     draw: function(id, d, options) {
       var cfg = buildConfig(options)
@@ -37,7 +68,7 @@ var RadarChart = function () {
       var allAxis = d[0].map(i => i.axis)
       var total = allAxis.length
       var radius = Math.min(cfg.w/2, cfg.h/2)
-      var Format = d3.format('%')
+
       d3.select(id).select("svg").remove()
 
       // Add padding and translate to make space for legends
@@ -48,31 +79,8 @@ var RadarChart = function () {
 	    .append("g")
 	    .attr("transform", "translate("+ cfg.marginX/2 +","+ cfg.marginY/2 +")")
 
-      // tangential level segments
-      for(var j=0; j<cfg.levels; j++) {
-        var levelFactor = radius*((j+1)/cfg.levels);
-        g.selectAll(".levels")
-	  .data(allAxis)
-	  .enter()
-	  .append("svg:line")
-	  .attr("x1", function(d, i){return levelFactor*(1-Math.sin(i*pi2/total));})
-	  .attr("y1", function(d, i){return levelFactor*(1-Math.cos(i*pi2/total));})
-	  .attr("x2", function(d, i){return levelFactor*(1-Math.sin((i+1)*pi2/total));})
-	  .attr("y2", function(d, i){return levelFactor*(1-Math.cos((i+1)*pi2/total));})
-	  .attr("class", "level-line")
-	  .attr("transform", "translate(" + (cfg.w/2-levelFactor) + ", " + (cfg.h/2-levelFactor) + ")");
-      }
-
-      // level segment labels
-      for(var j=0; j<cfg.levels; j++) {
-        var levelFactor = radius*((j+1)/cfg.levels);
-        g.append("svg:text")
-	  .attr("x", function(d){return levelFactor*(1-Math.sin(0));})
-	  .attr("y", 0)
-	  .attr("class", "level-title")
-	  .attr("transform", "translate(" + (cfg.w/2-levelFactor + 5) + ", " + (cfg.h/2-levelFactor) + ")")
-	  .text(Format((j+1)*cfg.maxValue/cfg.levels));
-      }
+      drawLevelLines(g, cfg.levels, radius, allAxis)
+      drawLevelTitles(g, cfg.levels, radius, cfg.maxValue)
 
       var axis = g.selectAll(".axis")
 	    .data(allAxis)
