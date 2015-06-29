@@ -13,7 +13,6 @@ var RadarChart = function () {
       tipRadius: 6,
       w: 600,
       h: 600,
-      factorLegend: .85,
       levels: 4,
       maxValue: 1,
       opacityArea: 0.5,
@@ -61,6 +60,32 @@ var RadarChart = function () {
     }
   }
 
+  function drawAxes(g, radius, axisTitles) {
+    const factorLegend = .87
+    const axisCount = axisTitles.length
+    var axis = g.selectAll(".axis")
+	  .data(axisTitles)
+	  .enter()
+	  .append("g")
+	  .attr("class", "axis")
+
+    axis.append("line")
+      .attr("x1", radius)
+      .attr("y1", radius)
+      .attr("x2", (d, i) => radius*(1-Math.sin(i*pi2/axisCount)))
+      .attr("y2", (d, i) => radius*(1-Math.cos(i*pi2/axisCount)))
+      .attr("class", "axis-line")
+
+    axis.append("text")
+      .attr("class", "axis-title")
+      .text(d => d)
+      .attr("text-anchor", "middle")
+      .attr("dy", "1.5em")
+      .attr("transform", "translate(0, -10)")
+      .attr("x", (d, i) => radius*(1-factorLegend*Math.sin(i*pi2/axisCount))-60*Math.sin(i*pi2/axisCount))
+      .attr("y", (d, i) => radius*(1-Math.cos(i*pi2/axisCount))-20*Math.cos(i*pi2/axisCount))
+  }
+
   return {
     draw: function(id, d, options) {
       var cfg = buildConfig(options)
@@ -82,27 +107,7 @@ var RadarChart = function () {
       drawLevelLines(g, cfg.levels, radius, allAxis)
       drawLevelTitles(g, cfg.levels, radius, cfg.maxValue)
 
-      var axis = g.selectAll(".axis")
-	    .data(allAxis)
-	    .enter()
-	    .append("g")
-	    .attr("class", "axis")
-
-      axis.append("line")
-        .attr("x1", cfg.w/2)
-        .attr("y1", cfg.h/2)
-        .attr("x2", function(d, i){return cfg.w/2*(1-Math.sin(i*pi2/total));})
-        .attr("y2", function(d, i){return cfg.h/2*(1-Math.cos(i*pi2/total));})
-        .attr("class", "axis-line")
-
-      axis.append("text")
-        .attr("class", "axis-title")
-        .text(function(d){return d})
-        .attr("text-anchor", "middle")
-        .attr("dy", "1.5em")
-        .attr("transform", function(d, i){return "translate(0, -10)"})
-        .attr("x", function(d, i){return cfg.w/2*(1-cfg.factorLegend*Math.sin(i*pi2/total))-60*Math.sin(i*pi2/total);})
-        .attr("y", function(d, i){return cfg.h/2*(1-Math.cos(i*pi2/total))-20*Math.cos(i*pi2/total);});
+      drawAxes(g, radius, allAxis)
 
       var series = 0;
 
