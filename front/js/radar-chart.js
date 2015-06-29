@@ -111,32 +111,19 @@ var RadarChart = function () {
 
       var series = 0;
 
-      d.forEach(function(y, x) {
-        var dataValues = [];
-        g.selectAll(".nodes")
-	  .data(y, function(j, i) {
-	    dataValues.push([
-	      radius * (1-(j.value/cfg.maxValue)*Math.sin(i*pi2/total)),
-	      radius * (1-(j.value/cfg.maxValue)*Math.cos(i*pi2/total))
-	    ]);
-	  });
-        dataValues.push(dataValues[0]);
+      d.forEach(function(rating) {
+        const axisAngle = pi2/total
+        const vertices = rating.map((subRating, i) => [radius * (1-subRating.value*Math.sin(i*axisAngle)), radius * (1-subRating.value*Math.cos(i*axisAngle))])
 
         g.selectAll(".area")
-	  .data([dataValues])
+	  .data([vertices])
 	  .enter()
 	  .append("polygon")
 	  .attr("class", "radar-chart-serie"+series)
 	  .style("stroke-width", "2px")
 	  .style("stroke", cfg.color(series))
-	  .attr("points",function(d) {
-	    var str="";
-	    for(var pti=0;pti<d.length;pti++){
-	      str=str+d[pti][0]+","+d[pti][1]+" ";
-	    }
-	    return str;
-	  })
-	  .style("fill", function(j, i){return cfg.color(series)})
+	  .attr("points", d => d.reduce((prev, curr) => { return prev + ' ' + curr[0] + ',' + curr[1] }, ''))
+	  .style("fill", d => cfg.color(series))
 	  .style("fill-opacity", cfg.opacityArea)
 	  .on('mouseover', function (d) {
 	    var z = "polygon." + d3.select(this).attr("class");
@@ -156,20 +143,19 @@ var RadarChart = function () {
       });
       series=0;
 
-      d.forEach(function(y, x){
+      d.forEach(function(rating) {
         g.selectAll(".nodes")
-	  .data(y).enter()
-	  .append("svg:circle")
+	  .data(rating).enter()
+	  .append("circle")
 	  .attr("class", "radar-chart-serie"+series)
 	  .attr('r', cfg.tipRadius)
-	  .attr("alt", function(j){return Math.max(j.value, 0)})
+	  .attr("alt", subRating => subRating.value)
 	  .attr("cx", function(j, i) {
 	    return radius * (1-(j.value/cfg.maxValue)*Math.sin(i*pi2/total));
 	  })
 	  .attr("cy", function(j, i){
 	    return radius * (1-(j.value/cfg.maxValue)*Math.cos(i*pi2/total));
 	  })
-	  .attr("data-id", function(j){return j.axis})
 	  .style("fill", cfg.color(series)).style("fill-opacity", .9)
 	  .on('mouseover', function (d) {
 	    var newX = parseFloat(d3.select(this).attr('cx')) - 10;
