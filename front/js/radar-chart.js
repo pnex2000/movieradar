@@ -82,8 +82,8 @@ var RadarChart = function () {
       .attr("text-anchor", "middle")
       .attr("dy", "1.5em")
       .attr("transform", "translate(0, -10)")
-      .attr("x", (d, i) => radius*(1-factorLegend*Math.sin(i*pi2/axisCount))-60*Math.sin(i*pi2/axisCount))
-      .attr("y", (d, i) => radius*(1-Math.cos(i*pi2/axisCount))-20*Math.cos(i*pi2/axisCount))
+      .attr("x", (d, i) => radius*(1-factorLegend*Math.sin(i*pi2/axisCount)) - 60*Math.sin(i*pi2/axisCount))
+      .attr("y", (d, i) => radius*(1-Math.cos(i*pi2/axisCount)) - 20*Math.cos(i*pi2/axisCount))
   }
 
   return {
@@ -111,16 +111,17 @@ var RadarChart = function () {
 
       var series = 0;
 
-      d.forEach(function(y, x){
-        dataValues = [];
+      d.forEach(function(y, x) {
+        var dataValues = [];
         g.selectAll(".nodes")
-	  .data(y, function(j, i){
+	  .data(y, function(j, i) {
 	    dataValues.push([
-	      cfg.w/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*Math.sin(i*pi2/total)),
-	      cfg.h/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*Math.cos(i*pi2/total))
+	      radius * (1-(j.value/cfg.maxValue)*Math.sin(i*pi2/total)),
+	      radius * (1-(j.value/cfg.maxValue)*Math.cos(i*pi2/total))
 	    ]);
 	  });
         dataValues.push(dataValues[0]);
+
         g.selectAll(".area")
 	  .data([dataValues])
 	  .enter()
@@ -162,19 +163,15 @@ var RadarChart = function () {
 	  .attr("class", "radar-chart-serie"+series)
 	  .attr('r', cfg.tipRadius)
 	  .attr("alt", function(j){return Math.max(j.value, 0)})
-	  .attr("cx", function(j, i){
-	    dataValues.push([
-	      cfg.w/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*Math.sin(i*pi2/total)),
-	      cfg.h/2*(1-(parseFloat(Math.max(j.value, 0))/cfg.maxValue)*Math.cos(i*pi2/total))
-	    ]);
-	    return cfg.w/2*(1-(Math.max(j.value, 0)/cfg.maxValue)*Math.sin(i*pi2/total));
+	  .attr("cx", function(j, i) {
+	    return radius * (1-(j.value/cfg.maxValue)*Math.sin(i*pi2/total));
 	  })
 	  .attr("cy", function(j, i){
-	    return cfg.h/2*(1-(Math.max(j.value, 0)/cfg.maxValue)*Math.cos(i*pi2/total));
+	    return radius * (1-(j.value/cfg.maxValue)*Math.cos(i*pi2/total));
 	  })
 	  .attr("data-id", function(j){return j.axis})
 	  .style("fill", cfg.color(series)).style("fill-opacity", .9)
-	  .on('mouseover', function (d){
+	  .on('mouseover', function (d) {
 	    var newX = parseFloat(d3.select(this).attr('cx')) - 10;
 	    var newY = parseFloat(d3.select(this).attr('cy')) - 5;
 	    tooltip
@@ -192,7 +189,7 @@ var RadarChart = function () {
 	      .transition(200)
 	      .style("fill-opacity", .7);
 	  })
-	  .on('mouseout', function(){
+	  .on('mouseout', function() {
 	    tooltip
 	      .transition(200)
 	      .style('opacity', 0);
