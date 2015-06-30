@@ -1,17 +1,34 @@
 $(document).ready(function () {
+  var $raterSelect = $('select[name=rater]')
+  var $movieSelect = $('select[name=movie]')
+
   Bacon.combineTemplate({
     raters: getRatersE(),
     movies: getMoviesE()
   }).onValue(function (ratersMovies) {
-    $('select[name=rater]').append(optionsFromList(ratersMovies.raters))
-    $('select[name=movie]').append(optionsFromList(ratersMovies.movies))
+    $raterSelect.append(optionsFromList(ratersMovies.raters))
+    $movieSelect.append(optionsFromList(ratersMovies.movies))
   })
 
-  getRatingsE('Prometheus', 'giffis')
-    //.combine(getRatingsE('Blade Runner', 'giffis'), '.concat')
-    .doLog()
-    .onValue(drawChart)
+  var raterSelectionE = $raterSelect.asEventStream('change')
+  var movieSelectionE = $movieSelect.asEventStream('change')
 
+  // TODO update selections based on the other selection
+
+  raterSelectionE.merge(movieSelectionE)
+    .filter(areSelectionsValid)
+    .flatMapLatest(function () {
+      return getRatingsE($movieSelect.val(), $raterSelect.val())
+    })
+  .onValue(drawChart)
+
+  //getRatingsE('Prometheus', 'giffis')
+    //.combine(getRatingsE('Blade Runner', 'giffis'), '.concat')
+    //.onValue(drawChart)
+
+  function areSelectionsValid() {
+    return $raterSelect.val().length > 0 && $movieSelect.val().length > 0
+  }
 })
 
 function optionsFromList(list) {
