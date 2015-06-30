@@ -30,6 +30,7 @@ var RadarChart = function () {
     return cfg
   }
 
+  // TODO polylines could be well suited for this
   function drawLevelLines(g, levels, radius, axisTitles) {
     const axisCount = axisTitles.length
     for (var j = 0; j < levels; j++) {
@@ -109,6 +110,7 @@ var RadarChart = function () {
 
       drawAxes(g, radius, allAxis)
 
+      // TODO the following needs tidying up
       var series = 0;
 
       d.forEach(function(rating) {

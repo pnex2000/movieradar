@@ -1,14 +1,40 @@
 $(document).ready(function () {
+  Bacon.combineTemplate({
+    raters: getRatersE(),
+    movies: getMoviesE()
+  }).onValue(function (ratersMovies) {
+    $('select[name=rater]').append(optionsFromList(ratersMovies.raters))
+    $('select[name=movie]').append(optionsFromList(ratersMovies.movies))
+  })
+
   getRatingsE('Prometheus', 'giffis')
     //.combine(getRatingsE('Blade Runner', 'giffis'), '.concat')
     .doLog()
     .onValue(drawChart)
 
-  // function (rating) {$('#headers').append('Rating: ' + JSON.stringify(rating))}
 })
+
+function optionsFromList(list) {
+  var frag = document.createDocumentFragment()
+  list.forEach(function (item) {
+    var option = document.createElement('option')
+    option.value = item
+    option.text = item
+    frag.appendChild(option)
+  })
+  return frag
+}
 
 function getRatingsE(movie, user) {
   return Bacon.fromPromise($.ajax('/ratings/' + movie + '/user/' + user))
+}
+
+function getRatersE() {
+  return Bacon.fromPromise($.ajax('/ratings/raters'))
+}
+
+function getMoviesE() {
+  return Bacon.fromPromise($.ajax('/ratings/movies'))
 }
 
 function drawChart(ratings) {

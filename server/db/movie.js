@@ -10,6 +10,20 @@ function getRating(raterName, movieName) {
     })
 }
 
+function getRaters() {
+  return pgrm.queryAsync('select rater_name from rater')
+    .then(function (rows) {
+      return rows.map(function (row) { return row.rater_name })
+    })
+}
+
+function getMovies() {
+  return pgrm.queryAsync('select movie_name from movie')
+    .then(function (rows) {
+      return rows.map(function (row) { return row.movie_name })
+    })
+}
+
 // Utilities
 
 function propertiesToCamel(obj) {
@@ -38,5 +52,7 @@ function propertiesToCamel(obj) {
 }
 
 module.exports = {
-  getRating: getRating
+  getRating: getRating,
+  getRaters: getRaters,
+  getMovies: getMovies
 }
