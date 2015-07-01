@@ -1,4 +1,5 @@
-var pgrm = require('pg-using-bluebird')({dbUrl: 'postgres://localhost/movieradar'})
+var config = require('../config.js'),
+    pgrm = require('pg-using-bluebird')({dbUrl: config.dbUrl})
 
 // public
 
