@@ -8,6 +8,11 @@ var RadarChart = function () {
   const pi2 = 2 * Math.PI
   const Format = d3.format('%')
 
+  var cfg = {}
+  var axisCount
+  var radius
+  var container
+
   function buildConfig(customCfg) {
     var cfg = {
       tipRadius: 6,
@@ -86,35 +91,50 @@ var RadarChart = function () {
       .attr("x", (d, i) => radius*(1-factorLegend*Math.sin(i*pi2/axisCount)) - 60*Math.sin(i*pi2/axisCount))
       .attr("y", (d, i) => radius*(1-Math.cos(i*pi2/axisCount)) - 20*Math.cos(i*pi2/axisCount))
   }
+  function translateByMargin(elem) {
+    elem.attr("transform", "translate("+ cfg.marginX/2 +","+ cfg.marginY/2 +")")
+  }
 
   return {
-    draw: function(id, d, options) {
-      var cfg = buildConfig(options)
+    reset: function(containerId, data, options) {
+      cfg = buildConfig(options)
+      container = d3.select(containerId)
 
-      var allAxis = d[0].map(i => i.axis)
-      var total = allAxis.length
-      var radius = Math.min(cfg.w/2, cfg.h/2)
+      var axisTitles = data[0].map(i => i.axis)
+      axisCount = axisTitles.length
+      radius = Math.min(cfg.w/2, cfg.h/2)
 
-      d3.select(id).select("svg").remove()
+      container.select('svg').remove()
 
       // Add padding and translate to make space for legends
-      var g = d3.select(id)
+      var svg = container
 	    .append("svg")
 	    .attr("width", cfg.w + cfg.marginX)
 	    .attr("height", cfg.h + cfg.marginY)
-	    .append("g")
-	    .attr("transform", "translate("+ cfg.marginX/2 +","+ cfg.marginY/2 +")")
 
-      drawLevelLines(g, cfg.levels, radius, allAxis)
+      var g = svg
+            .append('g')
+            .attr('id', 'radar-axes')
+      translateByMargin(g)
+
+      drawLevelLines(g, cfg.levels, radius, axisTitles)
       drawLevelTitles(g, cfg.levels, radius, cfg.maxValue)
+      drawAxes(g, radius, axisTitles)
 
-      drawAxes(g, radius, allAxis)
+      return this
+    },
+    draw: function(data) {
+
+      var svg = container.select('svg')
+      var g = svg.append('g')
+            .attr('id', 'radar-data')
+      translateByMargin(g)
 
       // TODO the following needs tidying up
       var series = 0;
 
-      d.forEach(function(rating) {
-        const axisAngle = pi2/total
+      data.forEach(function(rating) {
+        const axisAngle = pi2/axisCount
         const vertices = rating.map((subRating, i) => [radius * (1-subRating.value*Math.sin(i*axisAngle)), radius * (1-subRating.value*Math.cos(i*axisAngle))])
 
         g.selectAll(".area")
@@ -145,7 +165,7 @@ var RadarChart = function () {
       });
       series=0;
 
-      d.forEach(function(rating) {
+      data.forEach(function(rating) {
         g.selectAll(".nodes")
 	  .data(rating).enter()
 	  .append("circle")
@@ -153,10 +173,10 @@ var RadarChart = function () {
 	  .attr('r', cfg.tipRadius)
 	  .attr("alt", subRating => subRating.value)
 	  .attr("cx", function(j, i) {
-	    return radius * (1-(j.value/cfg.maxValue)*Math.sin(i*pi2/total));
+	    return radius * (1-(j.value/cfg.maxValue)*Math.sin(i*pi2/axisCount));
 	  })
 	  .attr("cy", function(j, i){
-	    return radius * (1-(j.value/cfg.maxValue)*Math.cos(i*pi2/total));
+	    return radius * (1-(j.value/cfg.maxValue)*Math.cos(i*pi2/axisCount));
 	  })
 	  .style("fill", cfg.color(series)).style("fill-opacity", .9)
 	  .on('mouseover', function (d) {

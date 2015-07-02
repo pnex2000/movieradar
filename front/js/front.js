@@ -70,7 +70,7 @@ function drawChart(ratings) {
     {axis:'Characters', value:rating.ratingCharacters/10}
   ])
 
-  RadarChart().draw(parentSelector,
+  RadarChart().reset(parentSelector,
                   data,
                   {
                     w: width,
@@ -78,6 +78,7 @@ function drawChart(ratings) {
                     maxValue: 1,
                     levels: 6
                   })
+    .draw(data)
 
   drawLegend(parentSelector, legendTitles, width)
 
