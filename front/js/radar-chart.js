@@ -183,7 +183,6 @@ var RadarChart = function () {
           .append('circle')
           .attr('class', 'radar-chart-serie'+series)
           .attr('r', cfg.tipRadius)
-          .attr('alt', subRating => subRating.value)
           .style('fill', cfg.color(series)).style('fill-opacity', .9)
           .on('mouseover', function (d) {
             var newX = parseFloat(d3.select(this).attr('cx')) - 10;
@@ -206,8 +205,6 @@ var RadarChart = function () {
 
             g.selectAll("polygon").transition(200).style("fill-opacity", cfg.opacityArea)
           })
-          .append("svg:title")
-          .text(function(j){return Math.max(j.value, 0)});
 
         tips
           .transition().duration(500)
