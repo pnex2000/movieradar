@@ -39,7 +39,7 @@ var RadarChart = function () {
   function drawLevelLines(g, levels, radius, axisTitles) {
     const axisCount = axisTitles.length
     for (var j = 0; j < levels; j++) {
-      var distanceFromOrigin = radius * ((j+1)/levels)
+      var distanceFromOrigin = radius * (j+1)/levels
       g.selectAll(".levels")
         .data(axisTitles)
         .enter()
@@ -49,7 +49,7 @@ var RadarChart = function () {
         .attr("x2", (d, i) => distanceFromOrigin*(1-Math.sin((i+1)*pi2/axisCount)))
         .attr("y2", (d, i) => distanceFromOrigin*(1-Math.cos((i+1)*pi2/axisCount)))
         .attr("class", "level-line")
-        .attr("transform", "translate(" + (radius-distanceFromOrigin) + ", " + (radius-distanceFromOrigin) + ")");
+        .attr('transform', `translate(${radius-distanceFromOrigin}, ${radius-distanceFromOrigin})`)
     }
   }
 
@@ -61,7 +61,7 @@ var RadarChart = function () {
         .attr("x", levelFactor)
         .attr("y", 0)
         .attr("class", "level-title")
-        .attr("transform", "translate(" + (radius-levelFactor + leftPadding) + ", " + (radius-levelFactor) + ")")
+        .attr('transform', `translate(${radius-levelFactor + leftPadding}, ${radius-levelFactor})`)
         .text(Format((j+1) * maxValue/levels))
     }
   }
@@ -92,7 +92,7 @@ var RadarChart = function () {
       .attr("y", (d, i) => radius*(1-Math.cos(i*pi2/axisCount)) - 20*Math.cos(i*pi2/axisCount))
   }
   function translateByMargin(elem) {
-    elem.attr("transform", "translate("+ cfg.marginX/2 +","+ cfg.marginY/2 +")")
+    elem.attr('transform', `translate(${cfg.marginX/2}, ${cfg.marginY/2})`)
   }
 
   return {
@@ -147,7 +147,7 @@ var RadarChart = function () {
           .data([vertices])
 
         area.exit().transition().duration(500)
-          .attr('points', d => d.reduce((prev, curr) => { return prev + ' 0,0' }, ''))
+          .attr('points', d => d.reduce((prev, curr) => `${prev} 0,0`, ''))
           .remove()
 
         area.enter()
@@ -155,7 +155,7 @@ var RadarChart = function () {
           .attr("class", "radar-chart-serie"+series)
           .style("stroke-width", "2px")
           .style("stroke", cfg.color(series))
-          .style("fill", d => cfg.color(series))
+          .style("fill", cfg.color(series))
           .style("fill-opacity", cfg.opacityArea)
           .on('mouseover', function (d) {
             var selected = "polygon." + d3.select(this).attr("class")
@@ -170,7 +170,7 @@ var RadarChart = function () {
 
         area
           .transition().duration(500)
-          .attr('points', d => d.reduce((prev, curr) => { return prev + ' ' + curr.x + ',' + curr.y }, ''))
+          .attr('points', d => d.reduce((prev, curr) => `${prev} ${curr.x},${curr.y}`, ''))
 
         // Tips of the polygon
 
@@ -183,7 +183,8 @@ var RadarChart = function () {
           .append('circle')
           .attr('class', 'radar-chart-serie'+series)
           .attr('r', cfg.tipRadius)
-          .style('fill', cfg.color(series)).style('fill-opacity', .9)
+          .style('fill', cfg.color(series))
+          .style('fill-opacity', .9)
           .on('mouseover', function (d) {
             var newX = parseFloat(d3.select(this).attr('cx')) - 10;
             var newY = parseFloat(d3.select(this).attr('cy')) - 5;
