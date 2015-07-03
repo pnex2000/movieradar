@@ -27,9 +27,9 @@ var RadarChart = function () {
     }
     if ('undefined' !== typeof customCfg) {
       for (var i in customCfg) {
-	if ('undefined' !== typeof customCfg[i]) {
-	  cfg[i] = customCfg[i]
-	}
+        if ('undefined' !== typeof customCfg[i]) {
+          cfg[i] = customCfg[i]
+        }
       }
     }
     return cfg
@@ -41,15 +41,15 @@ var RadarChart = function () {
     for (var j = 0; j < levels; j++) {
       var distanceFromOrigin = radius * ((j+1)/levels)
       g.selectAll(".levels")
-	.data(axisTitles)
-	.enter()
-	.append("line")
-	.attr("x1", (d, i) => distanceFromOrigin*(1-Math.sin(i*pi2/axisCount)))
-	.attr("y1", (d, i) => distanceFromOrigin*(1-Math.cos(i*pi2/axisCount)))
-	.attr("x2", (d, i) => distanceFromOrigin*(1-Math.sin((i+1)*pi2/axisCount)))
-	.attr("y2", (d, i) => distanceFromOrigin*(1-Math.cos((i+1)*pi2/axisCount)))
-	.attr("class", "level-line")
-	.attr("transform", "translate(" + (radius-distanceFromOrigin) + ", " + (radius-distanceFromOrigin) + ")");
+        .data(axisTitles)
+        .enter()
+        .append("line")
+        .attr("x1", (d, i) => distanceFromOrigin*(1-Math.sin(i*pi2/axisCount)))
+        .attr("y1", (d, i) => distanceFromOrigin*(1-Math.cos(i*pi2/axisCount)))
+        .attr("x2", (d, i) => distanceFromOrigin*(1-Math.sin((i+1)*pi2/axisCount)))
+        .attr("y2", (d, i) => distanceFromOrigin*(1-Math.cos((i+1)*pi2/axisCount)))
+        .attr("class", "level-line")
+        .attr("transform", "translate(" + (radius-distanceFromOrigin) + ", " + (radius-distanceFromOrigin) + ")");
     }
   }
 
@@ -58,11 +58,11 @@ var RadarChart = function () {
     for (var j = 0; j < levels; j++) {
       var levelFactor = radius*((j+1)/levels)
       g.append("text")
-	.attr("x", levelFactor)
-	.attr("y", 0)
-	.attr("class", "level-title")
-	.attr("transform", "translate(" + (radius-levelFactor + leftPadding) + ", " + (radius-levelFactor) + ")")
-	.text(Format((j+1) * maxValue/levels))
+        .attr("x", levelFactor)
+        .attr("y", 0)
+        .attr("class", "level-title")
+        .attr("transform", "translate(" + (radius-levelFactor + leftPadding) + ", " + (radius-levelFactor) + ")")
+        .text(Format((j+1) * maxValue/levels))
     }
   }
 
@@ -70,10 +70,10 @@ var RadarChart = function () {
     const factorLegend = .87
     const axisCount = axisTitles.length
     var axis = g.selectAll(".axis")
-	  .data(axisTitles)
-	  .enter()
-	  .append("g")
-	  .attr("class", "axis")
+          .data(axisTitles)
+          .enter()
+          .append("g")
+          .attr("class", "axis")
 
     axis.append("line")
       .attr("x1", radius)
@@ -108,9 +108,9 @@ var RadarChart = function () {
 
       // Add padding and translate to make space for legends
       var svg = container
-	    .append("svg")
-	    .attr("width", cfg.w + cfg.marginX)
-	    .attr("height", cfg.h + cfg.marginY)
+            .append("svg")
+            .attr("width", cfg.w + cfg.marginX)
+            .attr("height", cfg.h + cfg.marginY)
 
       var g = svg
             .append('g')
@@ -126,91 +126,98 @@ var RadarChart = function () {
     draw: function(data) {
 
       var svg = container.select('svg')
-      var g = svg.append('g')
-            .attr('id', 'radar-data')
-      translateByMargin(g)
+
+      // TODO look for adding elegance here, just a quick hack for now
+      var g = svg.select('#radar-data')
+      if (!g[0][0]) {
+        g = svg.append('g').attr('id', 'radar-data')
+        translateByMargin(g)
+      }
 
       // TODO the following needs tidying up
       var series = 0;
 
       data.forEach(function(rating) {
         const axisAngle = pi2/axisCount
-        const vertices = rating.map((subRating, i) => [radius * (1-subRating.value*Math.sin(i*axisAngle)), radius * (1-subRating.value*Math.cos(i*axisAngle))])
+        const vertices = rating.map((subRating, i) => {return {x: radius * (1-subRating.value*Math.sin(i*axisAngle)),
+                                                               y: radius * (1-subRating.value*Math.cos(i*axisAngle)),
+                                                               value: subRating.value }})
 
-        g.selectAll(".area")
-	  .data([vertices])
-	  .enter()
-	  .append("polygon")
-	  .attr("class", "radar-chart-serie"+series)
-	  .style("stroke-width", "2px")
-	  .style("stroke", cfg.color(series))
-	  .attr("points", d => d.reduce((prev, curr) => { return prev + ' ' + curr[0] + ',' + curr[1] }, ''))
-	  .style("fill", d => cfg.color(series))
-	  .style("fill-opacity", cfg.opacityArea)
-	  .on('mouseover', function (d) {
-	    var z = "polygon." + d3.select(this).attr("class");
-	    g.selectAll("polygon")
-	      .transition(200)
-	      .style("fill-opacity", 0.1);
-	    g.selectAll(z)
-	      .transition(200)
-	      .style("fill-opacity", .7);
-	  })
-	  .on('mouseout', function(){
-	    g.selectAll("polygon")
-	      .transition(200)
-	      .style("fill-opacity", cfg.opacityArea);
-	  });
-        series++;
-      });
-      series=0;
+        var area = g.selectAll('polygon')
+          .data([vertices])
 
-      data.forEach(function(rating) {
-        g.selectAll(".nodes")
-	  .data(rating).enter()
-	  .append("circle")
-	  .attr("class", "radar-chart-serie"+series)
-	  .attr('r', cfg.tipRadius)
-	  .attr("alt", subRating => subRating.value)
-	  .attr("cx", function(j, i) {
-	    return radius * (1-(j.value/cfg.maxValue)*Math.sin(i*pi2/axisCount));
-	  })
-	  .attr("cy", function(j, i){
-	    return radius * (1-(j.value/cfg.maxValue)*Math.cos(i*pi2/axisCount));
-	  })
-	  .style("fill", cfg.color(series)).style("fill-opacity", .9)
-	  .on('mouseover', function (d) {
-	    var newX = parseFloat(d3.select(this).attr('cx')) - 10;
-	    var newY = parseFloat(d3.select(this).attr('cy')) - 5;
-	    tooltip
-	      .attr('x', newX)
-	      .attr('y', newY)
-	      .text(Format(d.value))
-	      .transition(200)
-	      .style('opacity', 1)
+        area.exit().transition().duration(500)
+          .attr('points', d => d.reduce((prev, curr) => { return prev + ' 0,0' }, ''))
+          .remove()
 
-	    var z = "polygon." + d3.select(this).attr("class");
-	    g.selectAll("polygon")
-	      .transition(200)
-	      .style("fill-opacity", 0.1);
-	    g.selectAll(z)
-	      .transition(200)
-	      .style("fill-opacity", .7);
-	  })
-	  .on('mouseout', function() {
-	    tooltip
-	      .transition(200)
-	      .style('opacity', 0);
-	    g.selectAll("polygon")
-	      .transition(200)
-	      .style("fill-opacity", cfg.opacityArea);
-	  })
-	  .append("svg:title")
-	  .text(function(j){return Math.max(j.value, 0)});
+        area.enter()
+          .append("polygon")
+          .attr("class", "radar-chart-serie"+series)
+          .style("stroke-width", "2px")
+          .style("stroke", cfg.color(series))
+          .style("fill", d => cfg.color(series))
+          .style("fill-opacity", cfg.opacityArea)
+          .on('mouseover', function (d) {
+            var selected = "polygon." + d3.select(this).attr("class")
 
-        series++;
+            g.selectAll("polygon").transition(200).style("fill-opacity", 0.1)
+
+            g.selectAll(selected).transition(200).style("fill-opacity", .7)
+          })
+          .on('mouseout', function() {
+            g.selectAll("polygon").transition(200).style("fill-opacity", cfg.opacityArea)
+          })
+
+        area
+          .transition().duration(500)
+          .attr('points', d => d.reduce((prev, curr) => { return prev + ' ' + curr.x + ',' + curr.y }, ''))
+
+        // Tips of the polygon
+
+        var tips = g.selectAll('circle')
+              .data(vertices)
+
+        tips.exit().remove()
+        
+        tips.enter()
+          .append('circle')
+          .attr('class', 'radar-chart-serie'+series)
+          .attr('r', cfg.tipRadius)
+          .attr('alt', subRating => subRating.value)
+          .style('fill', cfg.color(series)).style('fill-opacity', .9)
+          .on('mouseover', function (d) {
+            var newX = parseFloat(d3.select(this).attr('cx')) - 10;
+            var newY = parseFloat(d3.select(this).attr('cy')) - 5;
+            tooltip
+              .attr('x', newX)
+              .attr('y', newY)
+              .text(Format(d.value))
+              .transition(200)
+              .style('opacity', 1)
+
+            var selected = "polygon." + d3.select(this).attr("class")
+
+            g.selectAll("polygon").transition(200).style("fill-opacity", 0.1)
+
+            g.selectAll(selected).transition(200).style("fill-opacity", .7)
+          })
+          .on('mouseout', function() {
+            tooltip.transition(200).style('opacity', 0)
+
+            g.selectAll("polygon").transition(200).style("fill-opacity", cfg.opacityArea)
+          })
+          .append("svg:title")
+          .text(function(j){return Math.max(j.value, 0)});
+
+        tips
+          .transition().duration(500)
+          .attr('cx', (vertex, i) => vertex.x )
+          .attr('cy', (vertex, i) => vertex.y )
+
+        series++
       })
-      
+
+      // TODO do only once
       var tooltip = g.append('text')
             .attr("class", 'tooltip')
             .style('opacity', 0)
@@ -219,4 +226,3 @@ var RadarChart = function () {
     }
   }
 }
-
