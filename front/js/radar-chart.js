@@ -12,6 +12,7 @@ var RadarChart = function () {
   var axisCount
   var radius
   var container
+  var tooltip
 
   function buildConfig(customCfg) {
     var cfg = {
@@ -95,6 +96,85 @@ var RadarChart = function () {
     elem.attr('transform', `translate(${cfg.marginX/2}, ${cfg.marginY/2})`)
   }
 
+  function drawTooltip(g) {
+    tooltip = g.append('text')
+      .attr('class', 'tooltip')
+      .style('opacity', 0)
+      .style('font-family', 'sans-serif')
+      .style('font-size', '13px')
+  }
+
+  function drawGraph(g, vertices, series) {
+    var area = g.selectAll(`polygon.radar-chart-serie${series}`)
+          .data([vertices])
+
+    area.exit().transition().duration(500)
+      .attr('points', d => d.reduce((prev, curr) => `${prev} 0,0`, ''))
+      .remove()
+
+    area.enter()
+      .append('polygon')
+      .attr('class', `radar-chart-serie${series}`)
+      .style('stroke-width', '2px')
+      .style('stroke', cfg.color(series))
+      .style('fill', cfg.color(series))
+      .style('fill-opacity', cfg.opacityArea)
+      .on('mouseover', function (d) {
+        var selected = 'polygon.' + d3.select(this).attr("class")
+
+        g.selectAll('polygon').transition(200).style('fill-opacity', 0.1)
+
+        g.selectAll(selected).transition(200).style('fill-opacity', .7)
+      })
+      .on('mouseout', function() {
+        g.selectAll('polygon').transition(200).style('fill-opacity', cfg.opacityArea)
+      })
+
+    area
+      .transition().duration(500)
+      .attr('points', d => d.reduce((prev, curr) => `${prev} ${curr.x},${curr.y}`, ''))
+
+    // Tips of the polygon
+
+    var tips = g.selectAll(`circle.radar-chart-serie${series}`)
+          .data(vertices)
+
+    tips.exit().remove()
+
+    tips.enter()
+      .append('circle')
+      .attr('class', `radar-chart-serie${series}`)
+      .attr('r', cfg.tipRadius)
+      .style('fill', cfg.color(series))
+      .style('fill-opacity', .9)
+      .on('mouseover', function (d) {
+        var newX = parseFloat(d3.select(this).attr('cx')) - 10;
+        var newY = parseFloat(d3.select(this).attr('cy')) - 5;
+        tooltip
+          .attr('x', newX)
+          .attr('y', newY)
+          .text(Format(d.value))
+          .transition(200)
+          .style('opacity', 1)
+
+        var selected = 'polygon.' + d3.select(this).attr('class')
+
+        g.selectAll('polygon').transition(200).style('fill-opacity', 0.1)
+
+        g.selectAll(selected).transition(200).style('fill-opacity', .7)
+      })
+      .on('mouseout', function() {
+        tooltip.transition(200).style('opacity', 0)
+
+        g.selectAll('polygon').transition(200).style('fill-opacity', cfg.opacityArea)
+      })
+
+    tips
+      .transition().duration(500)
+      .attr('cx', (vertex, i) => vertex.x )
+      .attr('cy', (vertex, i) => vertex.y )
+  }
+
   return {
     reset: function(containerId, data, options) {
       cfg = buildConfig(options)
@@ -123,7 +203,7 @@ var RadarChart = function () {
 
       return this
     },
-    draw: function(data) {
+    draw: function(ratings) {
 
       var svg = container.select('svg')
 
@@ -132,95 +212,17 @@ var RadarChart = function () {
       if (!g[0][0]) {
         g = svg.append('g').attr('id', 'radar-data')
         translateByMargin(g)
+        drawTooltip(g)
       }
 
-      // TODO the following needs tidying up
-      var series = 0;
+      const axisAngle = pi2/axisCount
 
-      data.forEach(function(rating) {
-        const axisAngle = pi2/axisCount
+      ratings.forEach(function(rating, idx) {
         const vertices = rating.map((subRating, i) => {return {x: radius * (1-subRating.value*Math.sin(i*axisAngle)),
                                                                y: radius * (1-subRating.value*Math.cos(i*axisAngle)),
                                                                value: subRating.value }})
-
-        var area = g.selectAll('polygon')
-          .data([vertices])
-
-        area.exit().transition().duration(500)
-          .attr('points', d => d.reduce((prev, curr) => `${prev} 0,0`, ''))
-          .remove()
-
-        area.enter()
-          .append("polygon")
-          .attr("class", "radar-chart-serie"+series)
-          .style("stroke-width", "2px")
-          .style("stroke", cfg.color(series))
-          .style("fill", cfg.color(series))
-          .style("fill-opacity", cfg.opacityArea)
-          .on('mouseover', function (d) {
-            var selected = "polygon." + d3.select(this).attr("class")
-
-            g.selectAll("polygon").transition(200).style("fill-opacity", 0.1)
-
-            g.selectAll(selected).transition(200).style("fill-opacity", .7)
-          })
-          .on('mouseout', function() {
-            g.selectAll("polygon").transition(200).style("fill-opacity", cfg.opacityArea)
-          })
-
-        area
-          .transition().duration(500)
-          .attr('points', d => d.reduce((prev, curr) => `${prev} ${curr.x},${curr.y}`, ''))
-
-        // Tips of the polygon
-
-        var tips = g.selectAll('circle')
-              .data(vertices)
-
-        tips.exit().remove()
-        
-        tips.enter()
-          .append('circle')
-          .attr('class', 'radar-chart-serie'+series)
-          .attr('r', cfg.tipRadius)
-          .style('fill', cfg.color(series))
-          .style('fill-opacity', .9)
-          .on('mouseover', function (d) {
-            var newX = parseFloat(d3.select(this).attr('cx')) - 10;
-            var newY = parseFloat(d3.select(this).attr('cy')) - 5;
-            tooltip
-              .attr('x', newX)
-              .attr('y', newY)
-              .text(Format(d.value))
-              .transition(200)
-              .style('opacity', 1)
-
-            var selected = "polygon." + d3.select(this).attr("class")
-
-            g.selectAll("polygon").transition(200).style("fill-opacity", 0.1)
-
-            g.selectAll(selected).transition(200).style("fill-opacity", .7)
-          })
-          .on('mouseout', function() {
-            tooltip.transition(200).style('opacity', 0)
-
-            g.selectAll("polygon").transition(200).style("fill-opacity", cfg.opacityArea)
-          })
-
-        tips
-          .transition().duration(500)
-          .attr('cx', (vertex, i) => vertex.x )
-          .attr('cy', (vertex, i) => vertex.y )
-
-        series++
+        drawGraph(g, vertices, idx)
       })
-
-      // TODO do only once
-      var tooltip = g.append('text')
-            .attr("class", 'tooltip')
-            .style('opacity', 0)
-            .style('font-family', 'sans-serif')
-            .style('font-size', '13px')
     }
   }
 }
