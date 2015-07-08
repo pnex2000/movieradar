@@ -10,7 +10,9 @@ var RadarChart = function () {
 
   var cfg = {}
   var axisCount
+  var axes = []
   var radius
+  var origin = {x: 0, y: 0}
   var container
   var tooltip
 
@@ -34,6 +36,20 @@ var RadarChart = function () {
       }
     }
     return cfg
+  }
+  function setRadius(rad) {
+    radius = rad
+    origin.x = origin.y = rad
+  }
+  function initAxes(count) {
+    const axisAngle = pi2/axisCount
+    axes = Array.from({length: count}, (val, idx) => {
+      return { x: Math.sin(idx * axisAngle), y: Math.cos(idx * axisAngle) }
+    })
+  }
+  function getNormalizedAxis(index) {
+    const axis = axes[index]
+    return { x: radius * (1 - axis.x) - radius, y: radius * (1 - axis.y) - radius }
   }
 
   // TODO polylines could be well suited for this
@@ -104,7 +120,65 @@ var RadarChart = function () {
       .style('font-size', '13px')
   }
 
-  function drawGraph(g, vertices, series) {
+  function dragmove(d) {
+    const point = d3.select(this)
+    const g = d3.select(this.parentNode)
+    const axisV = getNormalizedAxis(point.attr('data-axis'))
+    const newCoord = constrainLength(origin, newPointOnAxis(origin, axisV, d3.event), axisV, radius)
+
+    const newValue = distanceBetweenPoints(origin, newCoord) / radius
+    point.attr('cx', newCoord.x)
+    point.attr('cy', newCoord.y)
+    point.attr('data-value', newValue)
+    redrawPolygonToMatchTips(g, 0)
+
+    function vMake(x, y) { return { x: x, y: y } }
+    function vSub(a, b) { return { x: a.x-b.x, y: a.y-b.y } }
+    function vAdd(a, b) { return { x: a.x+b.x, y: a.y+b.y } }
+    function vMulS(a, s) { return { x: a.x*s, y: a.y*s } }
+    function vLength(a) { return Math.sqrt(a.x*a.x + a.y*a.y) }
+    // Project a onto b
+    function vProjection(a, b) { return vMulS(b, vDot(a, b) / vDot(b, b)) }
+    function vDot (a, b) { return a.x*b.x + a.y*b.y }
+
+    function newPointOnAxis(origin, vAxis, offsetC) {
+      const vOffset = vSub(offsetC, origin)
+      return vAdd(origin, vProjection(vOffset, vAxis))
+    }
+
+    function constrainLength(origin, point, direction, maxLength) {
+      const normalized = vSub(point, origin)
+      const length = vLength(normalized)
+      if (vDot(normalized, direction) <= 0) { return origin }
+      if (length > maxLength) {
+        const lengthFactor = maxLength / length
+        return vAdd(origin, vMake(normalized.x * lengthFactor, normalized.y * lengthFactor))
+      }
+      return point
+    }
+
+    function distanceBetweenPoints(oldc, newc) {
+      const diffv = vSub(newc, oldc)
+      return vLength(diffv)
+    }
+  }
+
+  const drag = d3.behavior.drag()
+        .origin((d) => { const elem = d3.event.target; return { x: elem.getAttribute('cx'), y: elem.getAttribute('cy') }})
+        .on('drag', dragmove)
+
+  function redrawPolygonToMatchTips(g, series) {
+    const circles = container.selectAll('svg #radar-data circle')
+    const vertices = circles[0].map(svge => {return { x: svge.getAttribute('cx'), y: svge.getAttribute('cy') }})
+    drawGraphPolygon(g, vertices, series, false)
+  }
+
+  function drawGraph(g, vertices, series, enableManipulation) {
+    drawGraphPolygon(g, vertices, series, true)
+    drawGraphTips(g, vertices, series, enableManipulation)
+  }
+
+  function drawGraphPolygon(g, vertices, series, animate) {
     var area = g.selectAll(`polygon.radar-chart-serie${series}`)
           .data([vertices])
 
@@ -120,7 +194,7 @@ var RadarChart = function () {
       .style('fill', cfg.color(series))
       .style('fill-opacity', cfg.opacityArea)
       .on('mouseover', function (d) {
-        var selected = 'polygon.' + d3.select(this).attr("class")
+        var selected = 'polygon.' + d3.select(this).attr('class')
 
         g.selectAll('polygon').transition(200).style('fill-opacity', 0.1)
 
@@ -130,34 +204,33 @@ var RadarChart = function () {
         g.selectAll('polygon').transition(200).style('fill-opacity', cfg.opacityArea)
       })
 
-    area
-      .transition().duration(500)
-      .attr('points', d => d.reduce((prev, curr) => `${prev} ${curr.x},${curr.y}`, ''))
+    const initialSelection = animate ? area.transition().duration(500) : area
+    initialSelection.attr('points', d => d.reduce((prev, curr) => `${prev} ${curr.x},${curr.y}`, ''))
+  }
 
-    // Tips of the polygon
-
+  function drawGraphTips(g, vertices, series, enableManipulation) {
     var tips = g.selectAll(`circle.radar-chart-serie${series}`)
           .data(vertices)
 
     tips.exit().remove()
 
-    tips.enter()
+    const enter = tips.enter()
       .append('circle')
       .attr('class', `radar-chart-serie${series}`)
       .attr('r', cfg.tipRadius)
+      .attr('data-axis', (vertex, i) => i)
       .style('fill', cfg.color(series))
       .style('fill-opacity', .9)
       .on('mouseover', function (d) {
-        var newX = parseFloat(d3.select(this).attr('cx')) - 10;
-        var newY = parseFloat(d3.select(this).attr('cy')) - 5;
+        const tip = d3.select(this)
         tooltip
-          .attr('x', newX)
-          .attr('y', newY)
-          .text(Format(d.value))
+          .attr('x', parseFloat(tip.attr('cx')) - 10)
+          .attr('y', parseFloat(tip.attr('cy')) - 10)
+          .text(Format(tip.attr('data-value') || d.value))
           .transition(200)
           .style('opacity', 1)
 
-        var selected = 'polygon.' + d3.select(this).attr('class')
+        const selected = 'polygon.' + tip.attr('class')
 
         g.selectAll('polygon').transition(200).style('fill-opacity', 0.1)
 
@@ -169,6 +242,9 @@ var RadarChart = function () {
         g.selectAll('polygon').transition(200).style('fill-opacity', cfg.opacityArea)
       })
 
+    if (enableManipulation) {
+      enter.call(drag)
+    }
     tips
       .transition().duration(500)
       .attr('cx', (vertex, i) => vertex.x )
@@ -182,7 +258,8 @@ var RadarChart = function () {
 
       var axisTitles = data[0].map(i => i.axis)
       axisCount = axisTitles.length
-      radius = Math.min(cfg.w/2, cfg.h/2)
+      setRadius(Math.min(cfg.w/2, cfg.h/2))
+      initAxes(axisCount)
 
       container.select('svg').remove()
 
@@ -203,7 +280,7 @@ var RadarChart = function () {
 
       return this
     },
-    draw: function(ratings) {
+    draw: function(ratings, enableManipulation) {
 
       var svg = container.select('svg')
 
@@ -218,10 +295,10 @@ var RadarChart = function () {
       const axisAngle = pi2/axisCount
 
       ratings.forEach(function(rating, idx) {
-        const vertices = rating.map((subRating, i) => {return {x: radius * (1-subRating.value*Math.sin(i*axisAngle)),
-                                                               y: radius * (1-subRating.value*Math.cos(i*axisAngle)),
+        const vertices = rating.map((subRating, i) => {return {x: radius * (1 - subRating.value * Math.sin(i*axisAngle)),
+                                                               y: radius * (1 - subRating.value * Math.cos(i*axisAngle)),
                                                                value: subRating.value }})
-        drawGraph(g, vertices, idx)
+        drawGraph(g, vertices, idx, enableManipulation)
       })
     }
   }

@@ -87,7 +87,7 @@ function makeRadarChart() {
     if (isAxisUpdateNeeded(6))
       radarChart.reset(parentSelector, data, { w: width, maxValue: 1, levels: 6 })
 
-    radarChart.draw(data)
+    radarChart.draw(data, false)
     clearLegend(parentSelector)
     drawLegend(parentSelector, legendTitles, width)
 
