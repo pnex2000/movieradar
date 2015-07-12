@@ -168,7 +168,7 @@ var RadarChart = function () {
         .on('drag', dragmove)
 
   function redrawPolygonToMatchTips(g, series) {
-    const circles = container.selectAll('svg #radar-data circle')
+    const circles = container.selectAll('svg .radar-data circle')
     const vertices = circles[0].map(svge => {return { x: svge.getAttribute('cx'), y: svge.getAttribute('cy') }})
     drawGraphPolygon(g, vertices, series, false)
   }
@@ -271,7 +271,7 @@ var RadarChart = function () {
 
       var g = svg
             .append('g')
-            .attr('id', 'radar-axes')
+            .attr('class', 'radar-axes')
       translateByMargin(g)
 
       drawLevelLines(g, cfg.levels, radius, axisTitles)
@@ -285,9 +285,9 @@ var RadarChart = function () {
       var svg = container.select('svg')
 
       // TODO look for adding elegance here, just a quick hack for now
-      var g = svg.select('#radar-data')
+      var g = svg.select('.radar-data')
       if (!g[0][0]) {
-        g = svg.append('g').attr('id', 'radar-data')
+        g = svg.append('g').attr('class', 'radar-data')
         translateByMargin(g)
         drawTooltip(g)
       }

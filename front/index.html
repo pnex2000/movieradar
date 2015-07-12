@@ -16,14 +16,26 @@
       <h1>Movie radar</h1>
     </div>
     <div id="rating-selection">
-      <select name="rater">
-        <option selected value="">Select rater</option>
-        <option value="">---</option>
-      </select>
-      <select name="movie">
-        <option selected value="">Select movie</option>
-        <option value="">---</option>
-      </select>
+      <form id="rating-selection-form">
+        View ratings for movie
+        <select name="movie">
+          <option selected value="">Select movie</option>
+          <option value="">---</option>
+        </select>
+        by user
+        <select name="rater">
+          <option selected value="">Select rater</option>
+          <option value="">---</option>
+        </select>
+      </form>
+    </div>
+    <div id="new-rating">
+      <button id="rate-movie">Rate a movie</button>
+    </div>
+    <div id="new-rating-input">
+      <span class="line"><span class="input-label">Your username</span><input id="rater-input" type="text"></input></span>
+      <span class="line"><span class="input-label">The movie to rate</span><input id="movie-input" type="text"></input></span>
+      <div id="new-rating-chart"></div>
     </div>
     <div id="chart"></div>
   </div>

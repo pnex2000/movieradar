@@ -1,6 +1,13 @@
 $(document).ready(function () {
-  var $raterSelect = $('select[name=rater]')
-  var $movieSelect = $('select[name=movie]')
+  //const chartSel = '#chart'
+  const $raterSelect = $('select[name=rater]')
+  const $movieSelect = $('select[name=movie]')
+  const $newRatingBtn = $('#rate-movie')
+  const $raterInput = $('#rater-input')
+  const $movieInput = $('#movie-input')
+
+  // TODO make a nicer package
+  const drawChart = makeRadarChart('#chart')
 
   Bacon.combineTemplate({
     raters: getRatersE(),
@@ -10,24 +17,44 @@ $(document).ready(function () {
     $movieSelect.append(optionsFromList(ratersMovies.movies))
   })
 
-  var raterSelectionE = $raterSelect.asEventStream('change')
-  var movieSelectionE = $movieSelect.asEventStream('change')
+  const raterSelectionE = $raterSelect.asEventStream('change')
+  const movieSelectionE = $movieSelect.asEventStream('change')
 
   // TODO update selections based on the other selection
 
   raterSelectionE.merge(movieSelectionE)
     .filter(areSelectionsValid)
-    .flatMapLatest(function () {
-      return getRatingsE($movieSelect.val(), $raterSelect.val())
-    })
-    .onValue(makeRadarChart())
+    .doAction(() => $('#new-rating-input').hide(250))
+    .flatMapLatest(() => getRatingsE($movieSelect.val(), $raterSelect.val()))
+    .doAction(() => $('#chart').fadeIn(250))
+    .onValue(drawChart)
 
   //getRatingsE('Prometheus', 'giffis')
     //.combine(getRatingsE('Blade Runner', 'giffis'), '.concat')
     //.onValue(drawChart)
 
+  $newRatingBtn.asEventStream('click')
+    .doAction(() => document.getElementById('rating-selection-form').reset())
+    .doAction(() => $('#chart').fadeOut(250))
+    .doAction(() => $('#new-rating-chart').hide())
+    .onValue(() => $('#new-rating-input').show(250))
+
+  const raterInputE = $raterInput.asEventStream('input cut paste')
+  const movieInputE = $movieInput.asEventStream('input cut paste')
+
+  const drawNewChart = makeRadarChart('#new-rating-chart')
+
+  raterInputE.merge(movieInputE)
+    .debounce(500)
+    .filter(areUserAndMovieInputsValid)
+    .doAction(() => $('#new-rating-chart').show(250))
+    .onValue(() => drawNewChart(defaultRating($raterInput.val(), $movieInput.val()), true))
+
   function areSelectionsValid() {
     return $raterSelect.val().length > 0 && $movieSelect.val().length > 0
+  }
+  function areUserAndMovieInputsValid() {
+    return $raterInput.val().length > 0 && $movieInput.val().length > 0
   }
 })
 
@@ -54,8 +81,21 @@ function getMoviesE() {
   return Bacon.fromPromise($.ajax('/ratings/movies'))
 }
 
-function makeRadarChart() {
-  const parentSelector = '#chart'
+function defaultRating(rater, movie) {
+  return [{
+    raterName: rater,
+    movieName: movie,
+    ratingDate: new Date().toISOString(),
+    ratingPlot: 5,
+    ratingScript: 5,
+    ratingHotness: 5,
+    ratingSound: 5,
+    ratingVisuality: 5,
+    ratingCharacters: 5
+  }]
+}
+
+function makeRadarChart(parentSelector) {
   const width = 500, height = 500
   const colorscale = d3.scale.category10()
   const radarChart = RadarChart()
@@ -72,8 +112,8 @@ function makeRadarChart() {
     }
   }
 
-  function drawChart(ratings) {
-    var legendTitles = ratings.map(rating => rating.movieName + ' (' + rating.raterName + ')')
+  function drawChart(ratings, editable) {
+    var legendTitles = ratings.map(rating => `${rating.movieName} (${rating.raterName})`)
 
     var data = ratings.map(rating => [
       {axis:'Plot',       value:rating.ratingPlot/10},
@@ -87,14 +127,14 @@ function makeRadarChart() {
     if (isAxisUpdateNeeded(6))
       radarChart.reset(parentSelector, data, { w: width, maxValue: 1, levels: 6 })
 
-    radarChart.draw(data, false)
+    radarChart.draw(data, editable === true ? true : false)
     clearLegend(parentSelector)
     drawLegend(parentSelector, legendTitles, width)
 
     function clearLegend(container) {
       d3.select(container)
         .selectAll('svg')
-        .select('#radar-legend')
+        .select('.radar-legend')
         .remove()
     }
     // TODO allow animating legend updates
@@ -102,7 +142,7 @@ function makeRadarChart() {
       var legendGroup = d3.select(container)
 	    .selectAll('svg')
 	    .append('g')
-            .attr('id', 'radar-legend')
+            .attr('class', 'radar-legend')
             .attr('transform', svgTranslation(width - 70, 10))
 
       drawTitle(legendGroup)

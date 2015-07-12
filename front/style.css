@@ -5,6 +5,47 @@ body {
     font-family: "Helvetica Neue", Helvetica;
 }
 
+button {
+    margin: 5px;
+    line-height: 20px;
+    font-size: 14px;
+    background-color: #CEF;
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: -1px 1px 1px rgba(0, 0, 0, 0.15);
+    padding: 3px 8px;
+}
+
+select {
+    padding: 2px;
+    margin: 0px 6px;
+}
+
+#rating-selection {
+    display: inline-block;
+    margin-right: 50px;
+}
+
+#new-rating {
+    display: inline-block;
+}
+
+#new-rating-input {
+    display: none;
+    margin: 10px 0px;
+}
+
+.line {
+    display: block;
+}
+
+.input-label {
+    width: 120px;
+    display: inline-block;
+    margin: 6px 0px;
+}
+
 #chart {
     padding: 10px;
 }
