@@ -1,6 +1,6 @@
 body {
     margin: 40px auto 80px;
-    max-width: 900px;
+    max-width: 700px;
     font-size: 14px;
     font-family: "Helvetica Neue", Helvetica;
 }
@@ -22,13 +22,20 @@ select {
     margin: 0px 6px;
 }
 
+#controls {
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center;
+}
+
 #rating-selection {
     display: inline-block;
-    margin-right: 50px;
+    flex: 1 1 auto;
 }
 
 #new-rating {
     display: inline-block;
+    flex: 0 1 auto;
 }
 
 #new-rating-input {
@@ -52,7 +59,12 @@ select {
 }
 
 #chart {
-    padding: 10px;
+    padding: 42px;
+}
+
+#chart svg {
+    display: block;
+    margin: 0px auto;
 }
 
 .level-line {
