@@ -6,7 +6,7 @@ var router = express.Router()
 
 router.get('/:movie/user/:user', function (req, res, next) {
   movieDb.getRating(req.params.user, req.params.movie)
-    .then(function (ratings) { return res.json(ratings) })
+    .then(function (ratings) { return ratings.length > 0 ? res.json(ratings) : res.status(404).end() })
     .catch(next)
 })
 
