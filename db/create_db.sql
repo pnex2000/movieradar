@@ -1,7 +1,9 @@
 create table rater (
-  rater_uuid UUID primary key,
+  rater_uuid UUID default uuid_generate_v4() primary key,
   rater_name varchar(30) not null
 );
+
+create unique index rater_rater_name_index on rater(lower(rater_name));
 
 create table movie (
   movie_id serial primary key,
@@ -20,3 +22,6 @@ create table rating (
   rating_visuality int not null,
   rating_characters int not null
 );
+
+create unique index rating_movie_rater_index on rating(rater_uuid, movie_id);
+
