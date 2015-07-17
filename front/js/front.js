@@ -9,6 +9,8 @@ $(document).ready(function () {
   // TODO make a nicer package
   const drawChart = makeRadarChart('#chart')
 
+  jQueryAjaxSetup()
+
   Bacon.combineTemplate({
     raters: getRatersE(),
     movies: getMoviesE()
@@ -48,7 +50,10 @@ $(document).ready(function () {
     .debounce(500)
     .filter(areUserAndMovieInputsValid)
     .doAction(() => $('#new-rating-chart').show(250))
-    .onValue(() => drawNewChart(defaultRating($raterInput.val(), $movieInput.val()), true))
+    .flatMapLatest(() => drawNewChart(defaultRating($raterInput.val(), $movieInput.val()), true))
+    .filter(areUserAndMovieInputsValid)
+    .flatMapLatest(rating => saveRatingE($movieInput.val(), $raterInput.val(), rating))
+    .onValue(res => console.log('saved stuff!', res))
 
   function areSelectionsValid() {
     return $raterSelect.val().length > 0 && $movieSelect.val().length > 0
@@ -79,6 +84,12 @@ function getRatersE() {
 
 function getMoviesE() {
   return Bacon.fromPromise($.ajax('/ratings/movies'))
+}
+
+function saveRatingE(movie, user, rating) {
+  return Bacon.fromPromise($.ajax({url: '/ratings/' + movie + '/user/' + user,
+                                   type: 'POST',
+                                   data: rating}))
 }
 
 function defaultRating(rater, movie) {
@@ -112,6 +123,22 @@ function makeRadarChart(parentSelector) {
     }
   }
 
+  function mapDisplayDataToSerial(data) {
+    const mapping = {
+      Plot: 'ratingPlot',
+      Script: 'ratingScript',
+      Hotness: 'ratingHotness',
+      Sound: 'ratingSound',
+      Visuality: 'ratingVisuality',
+      Characters: 'ratingCharacters'
+    }
+    var out = {}
+    data.forEach(rating => {
+      out[mapping[rating.title]] = rating.value
+    })
+    return out
+  }
+
   function drawChart(ratings, editable) {
     var legendTitles = ratings.map(rating => `${rating.movieName} (${rating.raterName})`)
 
@@ -127,9 +154,17 @@ function makeRadarChart(parentSelector) {
     if (isAxisUpdateNeeded(6))
       radarChart.reset(parentSelector, data, { w: width, maxValue: 1, levels: 6 })
 
-    radarChart.draw(data, editable === true ? true : false)
+    const updatesE = radarChart.draw(data, editable === true ? true : false)
+
     clearLegend(parentSelector)
     drawLegend(parentSelector, legendTitles, width)
+
+    return updatesE
+      .debounce(300)
+      .map(data => {
+        const scaledRatings = data.map(rating => ({ title: rating.title, value: Math.round(rating.value*10) }))
+        return mapDisplayDataToSerial(scaledRatings)
+      })
 
     function clearLegend(container) {
       d3.select(container)
@@ -180,4 +215,15 @@ function makeRadarChart(parentSelector) {
       return 'translate(' + x + ',' + y + ')'
     }
   }
+}
+
+function jQueryAjaxSetup() {
+  $.ajaxSetup({dataType: 'json', contentType: 'application/json; charset=utf-8'})
+  $.ajaxPrefilter('json', function (opts, originalOpts) {
+    if (opts.type.toLowerCase() !== 'get' &&
+        typeof originalOpts.data !== 'string' &&
+        !(originalOpts.data instanceof FormData)) {
+      opts.data = JSON.stringify(originalOpts.data)
+    }
+  })
 }

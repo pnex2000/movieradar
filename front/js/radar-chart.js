@@ -16,6 +16,14 @@ var RadarChart = function () {
   var container
   var tooltip
 
+  var graphUpdated = () => {}
+  const graphUpdatesE = Bacon.fromBinder(function(sink) {
+    graphUpdated = sink
+    return function() {
+      graphUpdated = () => {}
+    }
+  })
+
   function buildConfig(customCfg) {
     var cfg = {
       tipRadius: 6,
@@ -41,15 +49,18 @@ var RadarChart = function () {
     radius = rad
     origin.x = origin.y = rad
   }
-  function initAxes(count) {
+  function initAxes(axisTitles) {
     const axisAngle = pi2/axisCount
-    axes = Array.from({length: count}, (val, idx) => {
-      return { x: Math.sin(idx * axisAngle), y: Math.cos(idx * axisAngle) }
-    })
+    axes = axisTitles.map((val, idx) => (
+      { x: Math.sin(idx * axisAngle), y: Math.cos(idx * axisAngle), title: val }
+    ))
   }
   function getNormalizedAxis(index) {
     const axis = axes[index]
     return { x: radius * (1 - axis.x) - radius, y: radius * (1 - axis.y) - radius }
+  }
+  function getAxisTitle(index) {
+    return axes[index]['title']
   }
 
   // TODO polylines could be well suited for this
@@ -131,6 +142,7 @@ var RadarChart = function () {
     point.attr('cy', newCoord.y)
     point.attr('data-value', newValue)
     redrawPolygonToMatchTips(g, 0)
+    graphUpdated(readRatingValues())
 
     function vMake(x, y) { return { x: x, y: y } }
     function vSub(a, b) { return { x: a.x-b.x, y: a.y-b.y } }
@@ -171,6 +183,13 @@ var RadarChart = function () {
     const circles = container.selectAll('svg .radar-data circle')
     const vertices = circles[0].map(svge => {return { x: svge.getAttribute('cx'), y: svge.getAttribute('cy') }})
     drawGraphPolygon(g, vertices, series, false)
+  }
+
+  function readRatingValues() {
+    const circles = container.selectAll('svg .radar-data circle')
+    return circles[0].map(
+      svge => ({ value: svge.getAttribute('data-value'), title: getAxisTitle(svge.getAttribute('data-axis')) })
+    )
   }
 
   function drawGraph(g, vertices, series, enableManipulation) {
@@ -219,6 +238,7 @@ var RadarChart = function () {
       .attr('class', `radar-chart-serie${series}`)
       .attr('r', cfg.tipRadius)
       .attr('data-axis', (vertex, i) => i)
+      .attr('data-value', (vertex, i) => vertex.value)
       .style('fill', cfg.color(series))
       .style('fill-opacity', .9)
       .on('mouseover', function (d) {
@@ -226,7 +246,7 @@ var RadarChart = function () {
         tooltip
           .attr('x', parseFloat(tip.attr('cx')) - 10)
           .attr('y', parseFloat(tip.attr('cy')) - 10)
-          .text(Format(tip.attr('data-value') || d.value))
+          .text(Format(tip.attr('data-value')))
           .transition(200)
           .style('opacity', 1)
 
@@ -259,7 +279,7 @@ var RadarChart = function () {
       var axisTitles = data[0].map(i => i.axis)
       axisCount = axisTitles.length
       setRadius(Math.min(cfg.w/2, cfg.h/2))
-      initAxes(axisCount)
+      initAxes(axisTitles)
 
       container.select('svg').remove()
 
@@ -300,6 +320,7 @@ var RadarChart = function () {
                                                                value: subRating.value }})
         drawGraph(g, vertices, idx, enableManipulation)
       })
+      return graphUpdatesE
     }
   }
 }
