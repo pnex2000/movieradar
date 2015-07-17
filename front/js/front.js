@@ -144,7 +144,10 @@ function defaultRating(rater, movie) {
 
 function makeRadarChart(parentSelector) {
   const width = 500, height = 500
-  const colorscale = d3.scale.category10()
+  const colors = d3.scale.category10()
+  const colorsEditable = d3.scale.ordinal()
+          .domain(Array.from({length: 5}, (v, idx) => idx))
+          .range(['#30ffff', '#30ffaa', '#30ff55', '#30aa33', '#306600'])
   const radarChart = RadarChart()
   var axisCount = undefined
 
@@ -176,6 +179,7 @@ function makeRadarChart(parentSelector) {
   }
 
   function drawChart(ratings, editable) {
+    const colorScale = editable ? colorsEditable : colors
     var legendTitles = ratings.map(rating => `${rating.movieName} (${rating.raterName})`)
 
     var data = ratings.map(rating => [
@@ -187,8 +191,9 @@ function makeRadarChart(parentSelector) {
       {axis:'Characters', value:rating.ratingCharacters/10}
     ])
 
-    if (isAxisUpdateNeeded(6))
-      radarChart.reset(parentSelector, data, { w: width, maxValue: 1, levels: 6 })
+    if (isAxisUpdateNeeded(6)) {
+      radarChart.reset(parentSelector, data, { w: width, maxValue: 1, levels: 6, color: colorScale })
+    }
 
     const updatesE = radarChart.draw(data, editable === true ? true : false)
 
@@ -234,7 +239,7 @@ function makeRadarChart(parentSelector) {
           .attr("y", function(d, i) { return i * 20 + 8 })
           .attr("width", 10)
           .attr("height", 10)
-          .style("fill", function(d, i) { return colorscale(i) })
+          .style("fill", function(d, i) { return colorScale(i) })
       }
       function drawEntries(group) {
         group.selectAll('.legend-entry')
