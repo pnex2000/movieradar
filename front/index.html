@@ -35,8 +35,13 @@
       </div>
     </div>
     <div id="new-rating-input">
-      <span class="line"><span class="input-label">Your username</span><input id="rater-input" type="text"></input></span>
-      <span class="line"><span class="input-label">The movie to rate</span><input id="movie-input" type="text"></input></span>
+      <span class="line"><span class="input-label">Your username</span>
+        <input id="rater-input" type="text"></input>
+      </span>
+      <span class="line"><span class="input-label">The movie to rate</span>
+        <input id="movie-input" list="movie-datalist"></input>
+        <datalist id="movie-datalist"></datalist>
+      </span>
       <span class="line rating-error">Rating already exists</span>
       <div id="new-rating-chart"></div>
     </div>

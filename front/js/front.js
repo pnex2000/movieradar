@@ -6,6 +6,7 @@ $(document).ready(function () {
   const $newRatingBtn = $('#rate-movie')
   const $raterInput = $('#rater-input')
   const $movieInput = $('#movie-input')
+  const $movieDatalist = $('#movie-datalist')
 
   // TODO make a nicer package
   const drawChart = makeRadarChart('#chart')
@@ -22,6 +23,8 @@ $(document).ready(function () {
     }).onValue(function (ratersMovies) {
       $raterSelect.append(optionsFromList(ratersMovies.raters))
       $movieSelect.append(optionsFromList(ratersMovies.movies))
+
+      $movieDatalist.append(optionsFromList(ratersMovies.movies))
     })
   }
 
@@ -94,18 +97,18 @@ $(document).ready(function () {
     $('#new-rating-input').hide(250)
     $movieInput.val('')
   }
-})
 
-function optionsFromList(list) {
-  var frag = document.createDocumentFragment()
-  list.forEach(function (item) {
-    var option = document.createElement('option')
-    option.value = item
-    option.text = item
-    frag.appendChild(option)
-  })
-  return frag
-}
+  function optionsFromList(list) {
+    var frag = document.createDocumentFragment()
+    list.forEach((item) => {
+      var option = document.createElement('option')
+      option.value = item
+      option.text = item
+      frag.appendChild(option)
+    })
+    return frag
+  }
+})
 
 function getRatingsE(movie, user) {
   return Bacon.fromPromise($.ajax('/ratings/' + movie + '/user/' + user))
