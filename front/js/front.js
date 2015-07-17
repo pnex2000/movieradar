@@ -1,5 +1,6 @@
 $(document).ready(function () {
-  //const chartSel = '#chart'
+  jQueryAjaxSetup()
+
   const $raterSelect = $('select[name=rater]')
   const $movieSelect = $('select[name=movie]')
   const $newRatingBtn = $('#rate-movie')
@@ -9,57 +10,89 @@ $(document).ready(function () {
   // TODO make a nicer package
   const drawChart = makeRadarChart('#chart')
 
-  jQueryAjaxSetup()
+  populateMovieAndUserSelections()
+  addRatingSelectionHandlers()
+  addNewRatingHandlers()
+  showDemoRatings()
 
-  Bacon.combineTemplate({
-    raters: getRatersE(),
-    movies: getMoviesE()
-  }).onValue(function (ratersMovies) {
-    $raterSelect.append(optionsFromList(ratersMovies.raters))
-    $movieSelect.append(optionsFromList(ratersMovies.movies))
-  })
-
-  const raterSelectionE = $raterSelect.asEventStream('change')
-  const movieSelectionE = $movieSelect.asEventStream('change')
+  function populateMovieAndUserSelections() {
+    Bacon.combineTemplate({
+      raters: getRatersE(),
+      movies: getMoviesE()
+    }).onValue(function (ratersMovies) {
+      $raterSelect.append(optionsFromList(ratersMovies.raters))
+      $movieSelect.append(optionsFromList(ratersMovies.movies))
+    })
+  }
 
   // TODO update selections based on the other selection
+  function addRatingSelectionHandlers() {
+    const raterSelectionE = $raterSelect.asEventStream('change')
+    const movieSelectionE = $movieSelect.asEventStream('change')
 
-  raterSelectionE.merge(movieSelectionE)
-    .filter(areSelectionsValid)
-    .doAction(() => $('#new-rating-input').hide(250))
-    .flatMapLatest(() => getRatingsE($movieSelect.val(), $raterSelect.val()))
-    .doAction(() => $('#chart').fadeIn(250))
-    .onValue(drawChart)
+    raterSelectionE.merge(movieSelectionE)
+      .filter(areSelectionsValid)
+      .doAction(() => resetNewRating())
+      .flatMapLatest(() => getRatingsE($movieSelect.val(), $raterSelect.val()))
+      .doAction(() => $('#chart').fadeIn(250))
+      .onValue(drawChart)
 
-  //getRatingsE('Prometheus', 'giffis')
-    //.combine(getRatingsE('Blade Runner', 'giffis'), '.concat')
-    //.onValue(drawChart)
-
-  $newRatingBtn.asEventStream('click')
-    .doAction(() => document.getElementById('rating-selection-form').reset())
-    .doAction(() => $('#chart').fadeOut(250))
-    .doAction(() => $('#new-rating-chart').hide())
-    .onValue(() => $('#new-rating-input').show(250))
-
-  const raterInputE = $raterInput.asEventStream('input cut paste')
-  const movieInputE = $movieInput.asEventStream('input cut paste')
-
-  const drawNewChart = makeRadarChart('#new-rating-chart')
-
-  raterInputE.merge(movieInputE)
-    .debounce(500)
-    .filter(areUserAndMovieInputsValid)
-    .doAction(() => $('#new-rating-chart').show(250))
-    .flatMapLatest(() => drawNewChart(defaultRating($raterInput.val(), $movieInput.val()), true))
-    .filter(areUserAndMovieInputsValid)
-    .flatMapLatest(rating => saveRatingE($movieInput.val(), $raterInput.val(), rating))
-    .onValue(res => console.log('saved stuff!', res))
-
-  function areSelectionsValid() {
-    return $raterSelect.val().length > 0 && $movieSelect.val().length > 0
+    function areSelectionsValid() {
+      return $raterSelect.val().length > 0 && $movieSelect.val().length > 0
+    }
   }
-  function areUserAndMovieInputsValid() {
-    return $raterInput.val().length > 0 && $movieInput.val().length > 0
+
+  function addNewRatingHandlers() {
+    $newRatingBtn.asEventStream('click')
+      .doAction(() => resetRatingSelection())
+      .doAction(() => $('#new-rating-chart').hide())
+      .onValue(() => $('#new-rating-input').show(250))
+
+    const raterInputE = $raterInput.asEventStream('input cut paste')
+    const movieInputE = $movieInput.asEventStream('input cut paste')
+
+    const drawNewChart = makeRadarChart('#new-rating-chart')
+
+    const canUserRateE = raterInputE.merge(movieInputE)
+      .debounce(500)
+      .filter(areUserAndMovieInputsValid)
+      .flatMapLatest(() => getRatingsE($movieInput.val(), $raterInput.val()))
+
+    canUserRateE.onValue(() => { showError(true); $('#new-rating-chart').hide() })
+
+    canUserRateE
+      .errors()
+      .mapError(() => true)
+      .doAction(() => showError(false))
+      .doAction(() => $('#new-rating-chart').show(250))
+      .flatMapLatest(() => drawNewChart(defaultRating($raterInput.val(), $movieInput.val()), true))
+      .filter(areUserAndMovieInputsValid)
+      .flatMapLatest(rating => saveRatingE($movieInput.val(), $raterInput.val(), rating))
+      .onValue(res => console.log('saved stuff!', res))
+
+    function areUserAndMovieInputsValid() {
+      return $raterInput.val().length > 0 && $movieInput.val().length > 0
+    }
+    function showError(visible) {
+      const $error = $('#new-rating-input .rating-error')
+      if (visible) $error.show(250)
+      else $error.hide(250)
+    }
+  }
+
+  function showDemoRatings() {
+    getRatingsE('Prometheus', 'giffis')
+      //.combine(getRatingsE('Blade Runner', 'giffis'), '.concat')
+      .onValue(drawChart)
+  }
+
+  function resetRatingSelection() {
+    document.getElementById('rating-selection-form').reset()
+    $('#chart').fadeOut(250)
+  }
+  function resetNewRating() {
+    $('#new-rating-input').hide(250)
+    $movieInput.val('')
   }
 })
 

@@ -40,6 +40,11 @@ select {
     display: block;
 }
 
+.rating-error {
+    display: none;
+    font-weight: bold;
+}
+
 .input-label {
     width: 120px;
     display: inline-block;
