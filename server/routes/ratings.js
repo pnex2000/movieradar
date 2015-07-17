@@ -10,6 +10,12 @@ router.get('/:movie/user/:user', function (req, res, next) {
     .catch(next)
 })
 
+router.post('/:movie/user/:user', function (req, res, next) {
+  movieDb.addRating(req.params.user, req.params.movie, req.body)
+    .then(function () { res.status(204).end() })
+    .catch(next)
+})
+
 router.get('/raters', function (req, res, next) {
   movieDb.getRaters()
     .then(function (raters) { return res.json(raters) })
