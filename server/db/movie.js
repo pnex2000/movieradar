@@ -12,6 +12,14 @@ function getRating(raterName, movieName) {
     })
 }
 
+function getRandomRating() {
+  return pgrm.queryAsync(
+    'SELECT rater_name, movie_name, rating_date, rating_plot, rating_script, rating_hotness, rating_sound, rating_visuality, rating_characters FROM rating NATURAL JOIN rater NATURAL JOIN movie WHERE rating_id=(SELECT rating_id FROM rating OFFSET floor(random()*(SELECT COUNT(*) FROM rating)) LIMIT 1)', [])
+    .then(function(rows) {
+      return rows.map(propertiesToCamel)
+    })
+}
+
 function addRating(raterName, movieName, rating) {
   return BPromise.join(createOrGetUser(raterName), createOrGetMovie(movieName),
                        upsertRating)
@@ -88,6 +96,7 @@ function propertiesToCamel(obj) {
 
 module.exports = {
   getRating: getRating,
+  getRandomRating: getRandomRating,
   addRating: addRating,
   getRaters: getRaters,
   getMovies: getMovies

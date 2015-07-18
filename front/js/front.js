@@ -14,7 +14,7 @@ $(document).ready(function () {
   populateMovieAndUserSelections()
   addRatingSelectionHandlers()
   addNewRatingHandlers()
-  showDemoRatings()
+  showRandomRating()
 
   function populateMovieAndUserSelections() {
     Bacon.combineTemplate({
@@ -83,10 +83,8 @@ $(document).ready(function () {
     }
   }
 
-  function showDemoRatings() {
-    getRatingsE('Prometheus', 'giffis')
-      //.combine(getRatingsE('Blade Runner', 'giffis'), '.concat')
-      .onValue(drawChart)
+  function showRandomRating() {
+    getRandomRatingE().onValue(drawChart)
   }
 
   function resetRatingSelection() {
@@ -109,6 +107,10 @@ $(document).ready(function () {
     return frag
   }
 })
+
+function getRandomRatingE(movie, user) {
+  return Bacon.fromPromise($.ajax('/ratings/random'))
+}
 
 function getRatingsE(movie, user) {
   return Bacon.fromPromise($.ajax('/ratings/' + movie + '/user/' + user))

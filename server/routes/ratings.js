@@ -4,6 +4,12 @@ var express = require('express'),
 
 var router = express.Router()
 
+router.get('/random', function (req, res, next) {
+  movieDb.getRandomRating()
+    .then(function (ratings) { return ratings.length > 0 ? res.json(ratings) : res.status(404).end() })
+    .catch(next)
+})
+
 router.get('/:movie/user/:user', function (req, res, next) {
   movieDb.getRating(req.params.user, req.params.movie)
     .then(function (ratings) { return ratings.length > 0 ? res.json(ratings) : res.status(404).end() })
