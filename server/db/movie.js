@@ -12,6 +12,17 @@ function getRating(raterName, movieName) {
     })
 }
 
+function getRatings(movieName, limit) {
+  if (limit > 100) limit = 100
+  else if (!limit || limit < 1) limit = 1
+
+  return pgrm.queryAsync(
+    'select rater_name, movie_name, rating_date, rating_plot, rating_script, rating_hotness, rating_sound, rating_visuality, rating_characters from rating natural join rater natural join movie where movie_name=$1 limit $2', [movieName, limit])
+    .then(function(rows) {
+      return rows.map(propertiesToCamel)
+    })
+}
+
 function getRandomRating() {
   return pgrm.queryAsync(
     'SELECT rater_name, movie_name, rating_date, rating_plot, rating_script, rating_hotness, rating_sound, rating_visuality, rating_characters FROM rating NATURAL JOIN rater NATURAL JOIN movie WHERE rating_id=(SELECT rating_id FROM rating OFFSET floor(random()*(SELECT COUNT(*) FROM rating)) LIMIT 1)', [])
@@ -96,6 +107,7 @@ function propertiesToCamel(obj) {
 
 module.exports = {
   getRating: getRating,
+  getRatings: getRatings,
   getRandomRating: getRandomRating,
   addRating: addRating,
   getRaters: getRaters,

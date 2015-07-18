@@ -16,6 +16,12 @@ router.get('/:movie/user/:user', function (req, res, next) {
     .catch(next)
 })
 
+router.get('/:movie/limit/:limit', function (req, res, next) {
+  movieDb.getRatings(req.params.movie, req.params.limit)
+    .then(function (ratings) { return ratings.length > 0 ? res.json(ratings) : res.status(404).end() })
+    .catch(next)
+})
+
 router.post('/:movie/user/:user', function (req, res, next) {
   movieDb.addRating(req.params.user, req.params.movie, req.body)
     .then(function () { res.status(204).end() })

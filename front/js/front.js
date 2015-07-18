@@ -36,12 +36,12 @@ $(document).ready(function () {
     raterSelectionE.merge(movieSelectionE)
       .filter(areSelectionsValid)
       .doAction(() => resetNewRating())
-      .flatMapLatest(() => getRatingsE($movieSelect.val(), $raterSelect.val()))
+      .flatMapLatest(() => getRatingsE($movieSelect.val(), $raterSelect.val(), 10))
       .doAction(() => $('#chart').fadeIn(250))
       .onValue(drawChart)
 
     function areSelectionsValid() {
-      return $raterSelect.val().length > 0 && $movieSelect.val().length > 0
+      return $movieSelect.val().length > 0
     }
   }
 
@@ -112,8 +112,10 @@ function getRandomRatingE(movie, user) {
   return Bacon.fromPromise($.ajax('/ratings/random'))
 }
 
-function getRatingsE(movie, user) {
-  return Bacon.fromPromise($.ajax('/ratings/' + movie + '/user/' + user))
+function getRatingsE(movie, user, limit) {
+  return user.length > 0 ?
+    Bacon.fromPromise($.ajax(`/ratings/${movie}/user/${user}`)) :
+    Bacon.fromPromise($.ajax(`/ratings/${movie}/limit/${limit}`))
 }
 
 function getRatersE() {
