@@ -1,6 +1,7 @@
 var express = require('express'),
     BPromise = require('bluebird'),
-    movieDb = require('../db/movie.js')
+    movieDb = require('../db/movie.js'),
+    net = require('../net-utils.js')
 
 var router = express.Router()
 
@@ -24,7 +25,7 @@ router.get('/:movie/limit/:limit', function (req, res, next) {
 
 router.post('/:movie/user/:user', function (req, res, next) {
   movieDb.addRating(req.params.user, req.params.movie, req.body)
-    .then(function () { res.status(204).end() })
+    .then(net.respondWith204(res))
     .catch(next)
 })
 
