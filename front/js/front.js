@@ -11,10 +11,33 @@ $(document).ready(function () {
   // TODO make a nicer package
   const drawChart = makeRadarChart('#chart')
 
+  const urlParts = parseUrl()
+
   populateMovieAndUserSelections()
   addRatingSelectionHandlers()
   addNewRatingHandlers()
-  showRandomRating()
+
+  if (urlParts.length === 0) {
+    showRandomRating()
+  } else if (urlParts.length === 2) {
+    if (urlParts[0] === 'movie') {
+      showRatings(urlParts[1], undefined, 10)
+    }
+  } else if (urlParts.length === 4) {
+    if (urlParts[0] === 'movie' || urlParts[2] === 'reviewer') {
+      showRatings(urlParts[1], urlParts[3], 10)
+    }
+  }
+
+  function parseUrl() {
+    return window.location.pathname.split('/')
+      .filter(part => part.length > 0)
+  }
+
+  function showRatings(movie, rater, limit) {
+    getRatingsE(movie, rater, 10)
+      .onValue(drawChart)
+  }
 
   function populateMovieAndUserSelections() {
     Bacon.combineTemplate({
@@ -109,25 +132,25 @@ $(document).ready(function () {
 })
 
 function getRandomRatingE(movie, user) {
-  return Bacon.fromPromise($.ajax('/ratings/random'))
+  return Bacon.fromPromise($.ajax('/api/ratings/random'))
 }
 
 function getRatingsE(movie, user, limit) {
-  return user.length > 0 ?
-    Bacon.fromPromise($.ajax(`/ratings/${movie}/user/${user}`)) :
-    Bacon.fromPromise($.ajax(`/ratings/${movie}/limit/${limit}`))
+  return user && user.length > 0 ?
+    Bacon.fromPromise($.ajax(`/api/ratings/${movie}/user/${user}`)) :
+    Bacon.fromPromise($.ajax(`/api/ratings/${movie}/limit/${limit}`))
 }
 
 function getRatersE() {
-  return Bacon.fromPromise($.ajax('/ratings/raters'))
+  return Bacon.fromPromise($.ajax('/api/ratings/raters'))
 }
 
 function getMoviesE() {
-  return Bacon.fromPromise($.ajax('/ratings/movies'))
+  return Bacon.fromPromise($.ajax('/api/ratings/movies'))
 }
 
 function saveRatingE(movie, user, rating) {
-  return Bacon.fromPromise($.ajax({url: '/ratings/' + movie + '/user/' + user,
+  return Bacon.fromPromise($.ajax({url: '/api/ratings/' + movie + '/user/' + user,
                                    type: 'POST',
                                    data: rating}))
 }

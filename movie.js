@@ -13,7 +13,8 @@ app.use(express.static(path.join(__dirname, 'front')))
 app.use(bodyParser.json({limit: 100 * 1024}))
 app.use(bodyParser.urlencoded({ extended: true }))
 
-app.use('/ratings', require('./server/routes/ratings.js'))
+app.use('/', require('./server/routes/pages.js'))
+app.use('/api/ratings', require('./server/routes/ratings.js'))
 
 // If a request is unhandled at this point, assume its 404
 app.use(function(req, res, next) {
