@@ -11,44 +11,63 @@ $(document).ready(function () {
   // TODO make a nicer package
   const drawChart = makeRadarChart('#chart')
 
-  const urlParts = parseUrl()
+  const readyE = populateMovieAndUserSelections()
 
-  populateMovieAndUserSelections()
+  addPopstateHandler()
   addRatingSelectionHandlers()
   addNewRatingHandlers()
 
-  if (urlParts.length === 0) {
-    showRandomRating()
-  } else if (urlParts.length === 2) {
-    if (urlParts[0] === 'movie') {
-      showRatings(urlParts[1], undefined, 10)
-    }
-  } else if (urlParts.length === 4) {
-    if (urlParts[0] === 'movie' || urlParts[2] === 'reviewer') {
-      showRatings(urlParts[1], urlParts[3], 10)
+  showPageOnLoad(readyE)
+
+  function showPageOnLoad(readyE) {
+    const urlParts = readUrl()
+    const urlReadyE = readyE.map(() => urlParts)
+    if (urlParts.length === 0) {
+      showRandomRating(urlReadyE)
+    } else {
+      parseUrlAndShow(urlReadyE)
     }
   }
 
-  function parseUrl() {
-    return window.location.pathname.split('/')
+  function readUrl() {
+    return decodeURI(window.location.pathname).split('/')
       .filter(part => part.length > 0)
   }
 
-  function showRatings(movie, rater, limit) {
-    getRatingsE(movie, rater, 10)
-      .onValue(drawChart)
+  function urlForMovieAndRater(movie, rater) {
+    const movieUrl = `/movie/${movie}`
+    return rater && rater.length > 0 ? `${movieUrl}/reviewer/${rater}` : movieUrl
+  }
+
+  function updateHistory(url) {
+    history.pushState(undefined, undefined, url)
   }
 
   function populateMovieAndUserSelections() {
-    Bacon.combineTemplate({
+    const stream = Bacon.combineTemplate({
       raters: getRatersE(),
       movies: getMoviesE()
-    }).onValue(function (ratersMovies) {
-      $raterSelect.append(optionsFromList(ratersMovies.raters))
-      $movieSelect.append(optionsFromList(ratersMovies.movies))
-
-      $movieDatalist.append(optionsFromList(ratersMovies.movies))
     })
+      .doAction(ratersMovies => {
+        $raterSelect.append(optionsFromList(ratersMovies.raters))
+        $movieSelect.append(optionsFromList(ratersMovies.movies))
+        $movieDatalist.append(optionsFromList(ratersMovies.movies))
+      })
+    return stream
+  }
+
+  function addPopstateHandler() {
+    const stream = $(window).asEventStream('popstate')
+            .map(readUrl)
+    parseUrlAndShow(stream)
+  }
+
+  function parseUrlAndShow(urlE) {
+    const stream = urlE
+            .filter(urlParts => urlParts[0] === 'movie' && (!urlParts[2] || urlParts[2] === 'reviewer'))
+            .map(urlParts => ({movie: urlParts[1], rater: urlParts[3]}))
+            .doAction(p => {$movieSelect.val(p.movie); $raterSelect.val(p.rater) })
+    loadAndShowRatings(stream)
   }
 
   // TODO update selections based on the other selection
@@ -56,16 +75,24 @@ $(document).ready(function () {
     const raterSelectionE = $raterSelect.asEventStream('change')
     const movieSelectionE = $movieSelect.asEventStream('change')
 
-    raterSelectionE.merge(movieSelectionE)
-      .filter(areSelectionsValid)
-      .doAction(() => resetNewRating())
-      .flatMapLatest(() => getRatingsE($movieSelect.val(), $raterSelect.val(), 10))
-      .doAction(() => $('#chart').fadeIn(250))
-      .onValue(drawChart)
+    const selectionE = raterSelectionE.merge(movieSelectionE)
+            .filter(areSelectionsValid)
+            .doAction(() => resetNewRating())
+            .map(() => ({movie: $movieSelect.val(), rater: $raterSelect.val()}))
+            .doAction(p => updateHistory(urlForMovieAndRater(p.movie, p.rater)))
+
+    loadAndShowRatings(selectionE)
 
     function areSelectionsValid() {
       return $movieSelect.val().length > 0
     }
+  }
+
+  function loadAndShowRatings(eventStream) {
+    eventStream
+      .flatMapLatest(p => getRatingsE(p.movie, p.rater, 10))
+      .doAction(() => $('#chart').fadeIn(250))
+      .onValue(drawChart)
   }
 
   function addNewRatingHandlers() {
@@ -106,8 +133,10 @@ $(document).ready(function () {
     }
   }
 
-  function showRandomRating() {
-    getRandomRatingE().onValue(drawChart)
+  function showRandomRating(readyE) {
+    readyE
+      .flatMapLatest(() => getRandomRatingE())
+      .onValue(drawChart)
   }
 
   function resetRatingSelection() {
