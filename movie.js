@@ -8,6 +8,9 @@ var config = require('./server/config.js'),
 var app = express()
 app.use(morgan('combined'))
 
+if (config.devEnv) {
+  app.use('/js', express.static(path.join(__dirname, 'front-js-src')))
+}
 app.use(express.static(path.join(__dirname, 'front')))
 
 app.use(bodyParser.json({limit: 100 * 1024}))
