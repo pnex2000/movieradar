@@ -9,6 +9,7 @@ var app = express()
 app.use(morgan('combined'))
 
 if (config.devEnv) {
+  console.log('DEV MODE')
   app.use('/js', express.static(path.join(__dirname, 'front-js-src')))
 }
 app.use(express.static(path.join(__dirname, 'front')))

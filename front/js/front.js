@@ -249,10 +249,11 @@ function makeRadarChart(parentSelector) {
     return out;
   }
 
+  // [{movieName, raterName}]
   function drawChart(ratings, editable) {
     var colorScale = editable ? colorsEditable : colors;
     var legendTitles = ratings.map(function (rating) {
-      return rating.movieName + ' (' + rating.raterName + ')';
+      return '' + rating.raterName;
     });
 
     var data = ratings.map(function (rating) {
@@ -287,7 +288,7 @@ function makeRadarChart(parentSelector) {
       drawEntries(legendGroup);
 
       function drawTitle(group) {
-        group.append("text").attr("class", "legend-title").text("Ratings");
+        group.append("text").attr("class", "legend-title").text("Raters");
       }
       function drawBoxes(group) {
         group.selectAll('rect').data(legendTitles).enter().append("rect").attr("x", 3).attr("y", function (d, i) {

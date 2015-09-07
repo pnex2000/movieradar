@@ -234,9 +234,10 @@ function makeRadarChart(parentSelector) {
     return out
   }
 
+  // [{movieName, raterName}]
   function drawChart(ratings, editable) {
     const colorScale = editable ? colorsEditable : colors
-    var legendTitles = ratings.map(rating => `${rating.movieName} (${rating.raterName})`)
+    var legendTitles = ratings.map(rating => `${rating.raterName}`)
 
     var data = ratings.map(rating => [
       {axis:'Plot',       value:rating.ratingPlot/10},
@@ -284,7 +285,7 @@ function makeRadarChart(parentSelector) {
       function drawTitle(group) {
         group.append("text")
           .attr("class", "legend-title")
-          .text("Ratings")
+          .text("Raters")
       }
       function drawBoxes(group) {
         group.selectAll('rect')
@@ -292,10 +293,10 @@ function makeRadarChart(parentSelector) {
           .enter()
           .append("rect")
           .attr("x", 3)
-          .attr("y", function(d, i) { return i * 20 + 8 })
+          .attr("y", (d, i) => i * 20 + 8)
           .attr("width", 10)
           .attr("height", 10)
-          .style("fill", function(d, i) { return colorScale(i) })
+          .style("fill", (d, i) => colorScale(i))
       }
       function drawEntries(group) {
         group.selectAll('.legend-entry')
@@ -303,13 +304,13 @@ function makeRadarChart(parentSelector) {
           .enter()
           .append("text")
           .attr("x", 18)
-          .attr("y", function(d, i) { return i * 20 + 17 })
+          .attr("y", (d, i) => i * 20 + 17)
           .attr("class", "legend-entry")
-          .text(function(d) { return d })
+          .text(d => d)
       }
     }
     function svgTranslation(x, y) {
-      return 'translate(' + x + ',' + y + ')'
+      return `translate(${x},${y})`
     }
   }
 }
