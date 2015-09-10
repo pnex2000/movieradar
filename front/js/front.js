@@ -26,11 +26,7 @@ $(document).ready(function () {
     var urlReadyE = readyE.map(function () {
       return urlParts;
     });
-    if (urlParts.length === 0) {
-      showRandomRating(urlReadyE);
-    } else {
-      parseUrlAndShow(urlReadyE);
-    }
+    parseUrlAndShow(urlReadyE);
   }
 
   function readUrl() {
@@ -66,14 +62,31 @@ $(document).ready(function () {
   }
 
   function parseUrlAndShow(urlE) {
-    var stream = urlE.filter(function (urlParts) {
+    var ratingE = urlE.filter(function (urlParts) {
       return urlParts[0] === 'movie' && (!urlParts[2] || urlParts[2] === 'reviewer');
     }).map(function (urlParts) {
       return { movie: urlParts[1], rater: urlParts[3] };
     }).doAction(function (p) {
       $movieSelect.val(p.movie);$raterSelect.val(p.rater);
+    }).doAction(function () {
+      return $('#controls').fadeIn(250);
     });
-    loadAndShowRatings(stream);
+    // TODO messy, refactor for clean transition points
+    loadAndShowRatings(ratingE);
+
+    urlE.filter(function (urlParts) {
+      return urlParts[0] === 'new-rating';
+    }).onValue(function () {
+      return transitionToNewRating();
+    });
+
+    urlE.filter(function (urlParts) {
+      return urlParts.length === 0;
+    }).doAction(function () {
+      return $('#controls').fadeIn(250);
+    }).onValue(function () {
+      return showRandomRating(Bacon.once());
+    });
   }
 
   // TODO update selections based on the other selection
@@ -81,9 +94,7 @@ $(document).ready(function () {
     var raterSelectionE = $raterSelect.asEventStream('change');
     var movieSelectionE = $movieSelect.asEventStream('change');
 
-    var selectionE = raterSelectionE.merge(movieSelectionE).filter(areSelectionsValid).doAction(function () {
-      return resetNewRating();
-    }).map(function () {
+    var selectionE = raterSelectionE.merge(movieSelectionE).filter(areSelectionsValid).map(function () {
       return { movie: $movieSelect.val(), rater: $raterSelect.val() };
     }).doAction(function (p) {
       return updateHistory(urlForMovieAndRater(p.movie, p.rater));
@@ -105,21 +116,25 @@ $(document).ready(function () {
   }
 
   function addNewRatingHandlers() {
-    $newRatingBtn.asEventStream('click').doAction(function () {
-      return resetRatingSelection();
-    }).doAction(function () {
-      return $('#new-rating-chart').hide();
-    }).onValue(function () {
-      return $('#new-rating-input').show(250);
+    $newRatingBtn.asEventStream('click').onValue(function () {
+      return transitionToNewRating();
     });
 
     var raterInputE = $raterInput.asEventStream('input cut paste');
     var movieInputE = $movieInput.asEventStream('input cut paste');
 
-    var drawNewChart = makeRadarChart('#new-rating-chart');
+    var drawNewChartF = makeRadarChart('#new-rating-chart');
 
     var canUserRateE = raterInputE.merge(movieInputE).debounce(500).filter(areUserAndMovieInputsValid).flatMapLatest(function () {
       return getRatingsE($movieInput.val(), $raterInput.val());
+    });
+
+    var doneE = $('#new-rating-input .ok-button').asEventStream('click').filter(areUserAndMovieInputsValid);
+
+    $('#new-rating-input .cancel-button').asEventStream('click').doAction(function () {
+      return resetNewRating();
+    }).onValue(function () {
+      return window.history.back();
     });
 
     canUserRateE.onValue(function () {
@@ -133,11 +148,15 @@ $(document).ready(function () {
     }).doAction(function () {
       return $('#new-rating-chart').show(250);
     }).flatMapLatest(function () {
-      return drawNewChart(defaultRating($raterInput.val(), $movieInput.val()), true);
-    }).filter(areUserAndMovieInputsValid).flatMapLatest(function (rating) {
+      return drawNewChartF(defaultRating($raterInput.val(), $movieInput.val()), true);
+    }).toProperty().sampledBy(doneE).flatMapLatest(function (rating) {
       return saveRatingE($movieInput.val(), $raterInput.val(), rating);
-    }).onValue(function (res) {
-      return console.log('saved stuff!', res);
+    }).map(function () {
+      return { movie: $movieInput.val() };
+    }).doAction(function () {
+      return resetNewRating();
+    }).onValue(function (movie) {
+      return transitionToRating(movie);
     });
 
     function areUserAndMovieInputsValid() {
@@ -152,13 +171,25 @@ $(document).ready(function () {
   function showRandomRating(readyE) {
     readyE.flatMapLatest(function () {
       return getRandomRatingE();
+    }).doAction(function () {
+      return $('#chart').fadeIn(250);
     }).onValue(drawChart);
   }
 
-  function resetRatingSelection() {
-    document.getElementById('rating-selection-form').reset();
-    $('#chart').fadeOut(250);
+  function transitionToRating(p) {
+    updateHistory(urlForMovieAndRater(p.movie, p.rater));
+    $('#controls').fadeIn(250);
+    loadAndShowRatings(Bacon.once(p));
   }
+
+  function transitionToNewRating() {
+    updateHistory('/new-rating');
+    $('#controls').fadeOut(250);
+    $('#chart').fadeOut(250);
+    $('#new-rating-chart').hide();
+    $('#new-rating-input').show(250);
+  }
+
   function resetNewRating() {
     $('#new-rating-input').hide(250);
     $movieInput.val('');

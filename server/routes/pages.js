@@ -14,6 +14,10 @@ router.get('/movie/:movieName/reviewer/:reviewerName', function(req, res) {
   respondWithIndex(res)
 })
 
+router.get('/new-rating', function(req, res) {
+  respondWithIndex(res)
+})
+
 function respondWithIndex(res) {
   res.sendFile('/front/index.html', { root: __dirname + '/../..' })
 }

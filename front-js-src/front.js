@@ -22,11 +22,7 @@ $(document).ready(function () {
   function showPageOnLoad(readyE) {
     const urlParts = readUrl()
     const urlReadyE = readyE.map(() => urlParts)
-    if (urlParts.length === 0) {
-      showRandomRating(urlReadyE)
-    } else {
-      parseUrlAndShow(urlReadyE)
-    }
+    parseUrlAndShow(urlReadyE)
   }
 
   function readUrl() {
@@ -63,11 +59,22 @@ $(document).ready(function () {
   }
 
   function parseUrlAndShow(urlE) {
-    const stream = urlE
+    const ratingE = urlE
             .filter(urlParts => urlParts[0] === 'movie' && (!urlParts[2] || urlParts[2] === 'reviewer'))
             .map(urlParts => ({movie: urlParts[1], rater: urlParts[3]}))
             .doAction(p => {$movieSelect.val(p.movie); $raterSelect.val(p.rater) })
-    loadAndShowRatings(stream)
+            .doAction(() => $('#controls').fadeIn(250))
+    // TODO messy, refactor for clean transition points
+    loadAndShowRatings(ratingE)
+
+    urlE
+      .filter(urlParts => urlParts[0] === 'new-rating')
+      .onValue(() => transitionToNewRating())
+
+    urlE
+      .filter(urlParts => urlParts.length === 0)
+      .doAction(() => $('#controls').fadeIn(250))
+      .onValue(() => showRandomRating(Bacon.once()))
   }
 
   // TODO update selections based on the other selection
@@ -77,7 +84,6 @@ $(document).ready(function () {
 
     const selectionE = raterSelectionE.merge(movieSelectionE)
             .filter(areSelectionsValid)
-            .doAction(() => resetNewRating())
             .map(() => ({movie: $movieSelect.val(), rater: $raterSelect.val()}))
             .doAction(p => updateHistory(urlForMovieAndRater(p.movie, p.rater)))
 
@@ -97,19 +103,24 @@ $(document).ready(function () {
 
   function addNewRatingHandlers() {
     $newRatingBtn.asEventStream('click')
-      .doAction(() => resetRatingSelection())
-      .doAction(() => $('#new-rating-chart').hide())
-      .onValue(() => $('#new-rating-input').show(250))
+      .onValue(() => transitionToNewRating())
 
     const raterInputE = $raterInput.asEventStream('input cut paste')
     const movieInputE = $movieInput.asEventStream('input cut paste')
 
-    const drawNewChart = makeRadarChart('#new-rating-chart')
+    const drawNewChartF = makeRadarChart('#new-rating-chart')
 
     const canUserRateE = raterInputE.merge(movieInputE)
       .debounce(500)
       .filter(areUserAndMovieInputsValid)
       .flatMapLatest(() => getRatingsE($movieInput.val(), $raterInput.val()))
+
+    const doneE = $('#new-rating-input .ok-button').asEventStream('click')
+      .filter(areUserAndMovieInputsValid)
+
+    $('#new-rating-input .cancel-button').asEventStream('click')
+      .doAction(() => resetNewRating())
+      .onValue(() => window.history.back())
 
     canUserRateE.onValue(() => { showError(true); $('#new-rating-chart').hide() })
 
@@ -118,10 +129,13 @@ $(document).ready(function () {
       .mapError(() => true)
       .doAction(() => showError(false))
       .doAction(() => $('#new-rating-chart').show(250))
-      .flatMapLatest(() => drawNewChart(defaultRating($raterInput.val(), $movieInput.val()), true))
-      .filter(areUserAndMovieInputsValid)
+      .flatMapLatest(() => drawNewChartF(defaultRating($raterInput.val(), $movieInput.val()), true))
+      .toProperty()
+      .sampledBy(doneE)
       .flatMapLatest(rating => saveRatingE($movieInput.val(), $raterInput.val(), rating))
-      .onValue(res => console.log('saved stuff!', res))
+      .map(() => ({ movie: $movieInput.val() }))
+      .doAction(() => resetNewRating())
+      .onValue((movie) => transitionToRating(movie))
 
     function areUserAndMovieInputsValid() {
       return $raterInput.val().length > 0 && $movieInput.val().length > 0
@@ -136,13 +150,24 @@ $(document).ready(function () {
   function showRandomRating(readyE) {
     readyE
       .flatMapLatest(() => getRandomRatingE())
+      .doAction(() => $('#chart').fadeIn(250))
       .onValue(drawChart)
   }
 
-  function resetRatingSelection() {
-    document.getElementById('rating-selection-form').reset()
-    $('#chart').fadeOut(250)
+  function transitionToRating(p) {
+    updateHistory(urlForMovieAndRater(p.movie, p.rater))
+    $('#controls').fadeIn(250)
+    loadAndShowRatings(Bacon.once(p))
   }
+
+  function transitionToNewRating() {
+    updateHistory('/new-rating')
+    $('#controls').fadeOut(250)
+    $('#chart').fadeOut(250)
+    $('#new-rating-chart').hide()
+    $('#new-rating-input').show(250)
+  }
+
   function resetNewRating() {
     $('#new-rating-input').hide(250)
     $movieInput.val('')
