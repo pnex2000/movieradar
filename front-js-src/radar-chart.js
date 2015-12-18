@@ -132,31 +132,20 @@ var RadarChart = function () {
   }
 
   function dragmove(d) {
-    const point = d3.select(this)
-    const group = d3.select(this.parentNode)
-    const axisV = getNormalizedAxis(point.attr('data-axis'))
-    const newCoord = constrainLength(origin, newPointOnAxis(origin, axisV, d3.event), axisV, radius)
+    const eventC = getEventPointWithinSvg()
+    const closest = getTipClosestToPoint(eventC)
+    const point = d3.select(closest.el)
+    const group = d3.select(closest.el.parentNode)
 
+    const axisV = getNormalizedAxis(point.attr('data-axis'))
+    const newCoord = constrainLength(origin, newPointOnAxis(origin, axisV, eventC), axisV, radius)
     const newValue = distanceBetweenPoints(origin, newCoord) / radius
+
     point.attr('cx', newCoord.x)
     point.attr('cy', newCoord.y)
     point.attr('data-value', newValue)
     redrawPolygonToMatchTips(group.select(() => this.parentNode.parentNode))
     graphUpdated(readRatingValues())
-
-    function vMake(x, y) { return { x: x, y: y } }
-    function vSub(a, b) { return { x: a.x-b.x, y: a.y-b.y } }
-    function vAdd(a, b) { return { x: a.x+b.x, y: a.y+b.y } }
-    function vMulS(a, s) { return { x: a.x*s, y: a.y*s } }
-    function vLength(a) { return Math.sqrt(a.x*a.x + a.y*a.y) }
-    // Project a onto b
-    function vProjection(a, b) { return vMulS(b, vDot(a, b) / vDot(b, b)) }
-    function vDot (a, b) { return a.x*b.x + a.y*b.y }
-
-    function newPointOnAxis(origin, vAxis, offsetC) {
-      const vOffset = vSub(offsetC, origin)
-      return vAdd(origin, vProjection(vOffset, vAxis))
-    }
 
     function constrainLength(origin, point, direction, maxLength) {
       const normalized = vSub(point, origin)
@@ -168,16 +157,43 @@ var RadarChart = function () {
       }
       return point
     }
-
-    function distanceBetweenPoints(oldc, newc) {
-      const diffv = vSub(newc, oldc)
-      return vLength(diffv)
-    }
   }
 
-  const drag = d3.behavior.drag()
-        .origin((d) => { const elem = d3.event.target; return { x: elem.getAttribute('cx'), y: elem.getAttribute('cy') }})
-        .on('drag', dragmove)
+  function vMake(x, y) { return { x: x, y: y } }
+  function vSub(a, b) { return { x: a.x-b.x, y: a.y-b.y } }
+  function vAdd(a, b) { return { x: a.x+b.x, y: a.y+b.y } }
+  function vMulS(a, s) { return { x: a.x*s, y: a.y*s } }
+  function vLength(a) { return Math.sqrt(a.x*a.x + a.y*a.y) }
+  // Project a onto b
+  function vProjection(a, b) { return vMulS(b, vDot(a, b) / vDot(b, b)) }
+  function vDot (a, b) { return a.x*b.x + a.y*b.y }
+
+  function newPointOnAxis(origin, vAxis, offsetC) {
+    const vOffset = vSub(offsetC, origin)
+    return vAdd(origin, vProjection(vOffset, vAxis))
+  }
+  function distanceBetweenPoints(oldc, newc) {
+    return vLength(vSub(newc, oldc))
+  }
+
+  const dragTip = d3.behavior.drag()
+    .origin((d) => getTipClosestToPoint(getEventPointWithinSvg()))
+    .on('drag', dragmove)
+
+  function getEventPointWithinSvg() {
+    const [px, py] = d3.mouse(container.select('svg')[0][0])
+    return {x: px - cfg.marginX/2, y: py - cfg.marginY/2}
+  }
+
+  function getTipClosestToPoint(selectedPoint) {
+    const tips = container.selectAll('g.area-tips circle')[0]
+      .map(circle => ({ x: circle.getAttribute('cx'), y: circle.getAttribute('cy'), el: circle }))
+
+    const closest = tips
+      .map(point => ({ l: distanceBetweenPoints(point, selectedPoint), x: point.x, y: point.y, el: point.el }))
+      .reduce((prev, curr) => curr.l < prev.l ? curr : prev)
+    return closest
+  }
 
   function redrawPolygonToMatchTips(g) {
     const circles = container.selectAll('svg .radar-data circle')
@@ -192,9 +208,9 @@ var RadarChart = function () {
     )
   }
 
-  function drawGraph(g, vertices, enableManipulation) {
+  function drawGraph(g, vertices) {
     drawGraphPolygon(g, vertices, true)
-    drawGraphTips(g, vertices, enableManipulation)
+    drawGraphTips(g, vertices)
   }
 
   function drawGraphPolygon(g, vertices, animate) {
@@ -228,7 +244,7 @@ var RadarChart = function () {
     initialSelection.attr('points', d => d.reduce((prev, curr) => `${prev} ${curr.x},${curr.y}`, ''))
   }
 
-  function drawGraphTips(g, vertices, enableManipulation) {
+  function drawGraphTips(g, vertices) {
     const gtips = g.selectAll('g.area-tips')
             .data(vertices)
 
@@ -270,9 +286,6 @@ var RadarChart = function () {
         g.selectAll('polygon').transition(200).style('fill-opacity', cfg.opacityArea)
       })
 
-    if (enableManipulation) {
-      enter.call(drag)
-    }
     tips
       .transition().duration(500)
       .attr('cx', (vertex, i) => vertex.x )
@@ -327,8 +340,11 @@ var RadarChart = function () {
                                               ({x: radius * (1 - subRating.value * Math.sin(i*axisAngle)),
                                                 y: radius * (1 - subRating.value * Math.cos(i*axisAngle)),
                                                 value: subRating.value })))
-      drawGraph(g, vertices, enableManipulation)
+      drawGraph(g, vertices)
 
+      if (enableManipulation) {
+	  svg.call(dragTip)
+      }
       return graphUpdatesE
     }
   }

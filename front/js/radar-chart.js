@@ -5,6 +5,8 @@
 
 'use strict';
 
+var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i['return']) _i['return'](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError('Invalid attempt to destructure non-iterable instance'); } }; })();
+
 var RadarChart = function RadarChart() {
 
   var pi2 = 2 * Math.PI;
@@ -120,12 +122,15 @@ var RadarChart = function RadarChart() {
   function dragmove(d) {
     var _this = this;
 
-    var point = d3.select(this);
-    var group = d3.select(this.parentNode);
-    var axisV = getNormalizedAxis(point.attr('data-axis'));
-    var newCoord = constrainLength(origin, newPointOnAxis(origin, axisV, d3.event), axisV, radius);
+    var eventC = getEventPointWithinSvg();
+    var closest = getTipClosestToPoint(eventC);
+    var point = d3.select(closest.el);
+    var group = d3.select(closest.el.parentNode);
 
+    var axisV = getNormalizedAxis(point.attr('data-axis'));
+    var newCoord = constrainLength(origin, newPointOnAxis(origin, axisV, eventC), axisV, radius);
     var newValue = distanceBetweenPoints(origin, newCoord) / radius;
+
     point.attr('cx', newCoord.x);
     point.attr('cy', newCoord.y);
     point.attr('data-value', newValue);
@@ -133,34 +138,6 @@ var RadarChart = function RadarChart() {
       return _this.parentNode.parentNode;
     }));
     graphUpdated(readRatingValues());
-
-    function vMake(x, y) {
-      return { x: x, y: y };
-    }
-    function vSub(a, b) {
-      return { x: a.x - b.x, y: a.y - b.y };
-    }
-    function vAdd(a, b) {
-      return { x: a.x + b.x, y: a.y + b.y };
-    }
-    function vMulS(a, s) {
-      return { x: a.x * s, y: a.y * s };
-    }
-    function vLength(a) {
-      return Math.sqrt(a.x * a.x + a.y * a.y);
-    }
-    // Project a onto b
-    function vProjection(a, b) {
-      return vMulS(b, vDot(a, b) / vDot(b, b));
-    }
-    function vDot(a, b) {
-      return a.x * b.x + a.y * b.y;
-    }
-
-    function newPointOnAxis(origin, vAxis, offsetC) {
-      var vOffset = vSub(offsetC, origin);
-      return vAdd(origin, vProjection(vOffset, vAxis));
-    }
 
     function constrainLength(origin, point, direction, maxLength) {
       var normalized = vSub(point, origin);
@@ -174,16 +151,66 @@ var RadarChart = function RadarChart() {
       }
       return point;
     }
-
-    function distanceBetweenPoints(oldc, newc) {
-      var diffv = vSub(newc, oldc);
-      return vLength(diffv);
-    }
   }
 
-  var drag = d3.behavior.drag().origin(function (d) {
-    var elem = d3.event.target;return { x: elem.getAttribute('cx'), y: elem.getAttribute('cy') };
+  function vMake(x, y) {
+    return { x: x, y: y };
+  }
+  function vSub(a, b) {
+    return { x: a.x - b.x, y: a.y - b.y };
+  }
+  function vAdd(a, b) {
+    return { x: a.x + b.x, y: a.y + b.y };
+  }
+  function vMulS(a, s) {
+    return { x: a.x * s, y: a.y * s };
+  }
+  function vLength(a) {
+    return Math.sqrt(a.x * a.x + a.y * a.y);
+  }
+  // Project a onto b
+  function vProjection(a, b) {
+    return vMulS(b, vDot(a, b) / vDot(b, b));
+  }
+  function vDot(a, b) {
+    return a.x * b.x + a.y * b.y;
+  }
+
+  function newPointOnAxis(origin, vAxis, offsetC) {
+    var vOffset = vSub(offsetC, origin);
+    return vAdd(origin, vProjection(vOffset, vAxis));
+  }
+  function distanceBetweenPoints(oldc, newc) {
+    return vLength(vSub(newc, oldc));
+  }
+
+  var dragTip = d3.behavior.drag().origin(function (d) {
+    return getTipClosestToPoint(getEventPointWithinSvg());
   }).on('drag', dragmove);
+
+  function getEventPointWithinSvg() {
+    var _d3$mouse = d3.mouse(container.select('svg')[0][0]);
+
+    var _d3$mouse2 = _slicedToArray(_d3$mouse, 2);
+
+    var px = _d3$mouse2[0];
+    var py = _d3$mouse2[1];
+
+    return { x: px - cfg.marginX / 2, y: py - cfg.marginY / 2 };
+  }
+
+  function getTipClosestToPoint(selectedPoint) {
+    var tips = container.selectAll('g.area-tips circle')[0].map(function (circle) {
+      return { x: circle.getAttribute('cx'), y: circle.getAttribute('cy'), el: circle };
+    });
+
+    var closest = tips.map(function (point) {
+      return { l: distanceBetweenPoints(point, selectedPoint), x: point.x, y: point.y, el: point.el };
+    }).reduce(function (prev, curr) {
+      return curr.l < prev.l ? curr : prev;
+    });
+    return closest;
+  }
 
   function redrawPolygonToMatchTips(g) {
     var circles = container.selectAll('svg .radar-data circle');
@@ -202,9 +229,9 @@ var RadarChart = function RadarChart() {
     });
   }
 
-  function drawGraph(g, vertices, enableManipulation) {
+  function drawGraph(g, vertices) {
     drawGraphPolygon(g, vertices, true);
-    drawGraphTips(g, vertices, enableManipulation);
+    drawGraphTips(g, vertices);
   }
 
   function drawGraphPolygon(g, vertices, animate) {
@@ -244,7 +271,7 @@ var RadarChart = function RadarChart() {
     });
   }
 
-  function drawGraphTips(g, vertices, enableManipulation) {
+  function drawGraphTips(g, vertices) {
     var gtips = g.selectAll('g.area-tips').data(vertices);
 
     gtips.enter().append('g').attr('class', function (d, i) {
@@ -280,9 +307,6 @@ var RadarChart = function RadarChart() {
       g.selectAll('polygon').transition(200).style('fill-opacity', cfg.opacityArea);
     });
 
-    if (enableManipulation) {
-      enter.call(drag);
-    }
     tips.transition().duration(500).attr('cx', function (vertex, i) {
       return vertex.x;
     }).attr('cy', function (vertex, i) {
@@ -337,8 +361,11 @@ var RadarChart = function RadarChart() {
             value: subRating.value };
         });
       });
-      drawGraph(g, vertices, enableManipulation);
+      drawGraph(g, vertices);
 
+      if (enableManipulation) {
+        svg.call(dragTip);
+      }
       return graphUpdatesE;
     }
   };
