@@ -3,7 +3,6 @@
 $(document).ready(function () {
   jQueryAjaxSetup();
 
-  var $raterSelect = $('select[name=rater]');
   var $movieSelect = $('select[name=movie]');
   var $newRatingBtn = $('#rate-movie');
   var $raterInput = $('#rater-input');
@@ -46,10 +45,8 @@ $(document).ready(function () {
 
   function populateMovieAndUserSelections() {
     var stream = Bacon.combineTemplate({
-      raters: getRatersE(),
       movies: getMoviesE()
     }).doAction(function (ratersMovies) {
-      $raterSelect.append(optionsFromList(ratersMovies.raters));
       $movieSelect.append(optionsFromList(ratersMovies.movies));
       $movieDatalist.append(optionsFromList(ratersMovies.movies));
     });
@@ -67,7 +64,7 @@ $(document).ready(function () {
     }).map(function (urlParts) {
       return { movie: urlParts[1], rater: urlParts[3] };
     }).doAction(function (p) {
-      $movieSelect.val(p.movie);$raterSelect.val(p.rater);
+      $movieSelect.val(p.movie);
     }).doAction(function () {
       return $('#controls').fadeIn(250);
     });
@@ -89,15 +86,13 @@ $(document).ready(function () {
     });
   }
 
-  // TODO update selections based on the other selection
   function addRatingSelectionHandlers() {
-    var raterSelectionE = $raterSelect.asEventStream('change');
     var movieSelectionE = $movieSelect.asEventStream('change');
 
-    var selectionE = raterSelectionE.merge(movieSelectionE).filter(areSelectionsValid).map(function () {
-      return { movie: $movieSelect.val(), rater: $raterSelect.val() };
+    var selectionE = movieSelectionE.filter(areSelectionsValid).map(function () {
+      return { movie: $movieSelect.val() };
     }).doAction(function (p) {
-      return updateHistory(urlForMovieAndRater(p.movie, p.rater));
+      return updateHistory(urlForMovieAndRater(p.movie));
     });
 
     loadAndShowRatings(selectionE);
@@ -213,10 +208,6 @@ function getRandomRatingE(movie, user) {
 
 function getRatingsE(movie, user, limit) {
   return user && user.length > 0 ? Bacon.fromPromise($.ajax('/api/ratings/' + movie + '/user/' + user)) : Bacon.fromPromise($.ajax('/api/ratings/' + movie + '/limit/' + limit));
-}
-
-function getRatersE() {
-  return Bacon.fromPromise($.ajax('/api/ratings/raters'));
 }
 
 function getMoviesE() {

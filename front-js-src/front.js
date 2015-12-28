@@ -1,7 +1,6 @@
 $(document).ready(function () {
   jQueryAjaxSetup()
 
-  const $raterSelect = $('select[name=rater]')
   const $movieSelect = $('select[name=movie]')
   const $newRatingBtn = $('#rate-movie')
   const $raterInput = $('#rater-input')
@@ -41,11 +40,9 @@ $(document).ready(function () {
 
   function populateMovieAndUserSelections() {
     const stream = Bacon.combineTemplate({
-      raters: getRatersE(),
       movies: getMoviesE()
     })
       .doAction(ratersMovies => {
-        $raterSelect.append(optionsFromList(ratersMovies.raters))
         $movieSelect.append(optionsFromList(ratersMovies.movies))
         $movieDatalist.append(optionsFromList(ratersMovies.movies))
       })
@@ -62,7 +59,7 @@ $(document).ready(function () {
     const ratingE = urlE
             .filter(urlParts => urlParts[0] === 'movie' && (!urlParts[2] || urlParts[2] === 'reviewer'))
             .map(urlParts => ({movie: urlParts[1], rater: urlParts[3]}))
-            .doAction(p => {$movieSelect.val(p.movie); $raterSelect.val(p.rater) })
+            .doAction(p => { $movieSelect.val(p.movie) })
             .doAction(() => $('#controls').fadeIn(250))
     // TODO messy, refactor for clean transition points
     loadAndShowRatings(ratingE)
@@ -77,15 +74,13 @@ $(document).ready(function () {
       .onValue(() => showRandomRating(Bacon.once()))
   }
 
-  // TODO update selections based on the other selection
   function addRatingSelectionHandlers() {
-    const raterSelectionE = $raterSelect.asEventStream('change')
     const movieSelectionE = $movieSelect.asEventStream('change')
 
-    const selectionE = raterSelectionE.merge(movieSelectionE)
+    const selectionE = movieSelectionE
             .filter(areSelectionsValid)
-            .map(() => ({movie: $movieSelect.val(), rater: $raterSelect.val()}))
-            .doAction(p => updateHistory(urlForMovieAndRater(p.movie, p.rater)))
+            .map(() => ({movie: $movieSelect.val()}))
+            .doAction(p => updateHistory(urlForMovieAndRater(p.movie)))
 
     loadAndShowRatings(selectionE)
 
@@ -193,10 +188,6 @@ function getRatingsE(movie, user, limit) {
   return user && user.length > 0 ?
     Bacon.fromPromise($.ajax(`/api/ratings/${movie}/user/${user}`)) :
     Bacon.fromPromise($.ajax(`/api/ratings/${movie}/limit/${limit}`))
-}
-
-function getRatersE() {
-  return Bacon.fromPromise($.ajax('/api/ratings/raters'))
 }
 
 function getMoviesE() {
