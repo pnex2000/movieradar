@@ -3,30 +3,26 @@
 // which in turn is based on
 // https://github.com/alangrafu/radar-chart-d3
 
-'use strict';
+var RadarChart = function () {
 
-var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i['return']) _i['return'](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError('Invalid attempt to destructure non-iterable instance'); } }; })();
+  const pi2 = 2 * Math.PI
+  const Format = d3.format('%')
 
-var RadarChart = function RadarChart() {
+  var cfg = {}
+  var axisCount
+  var axes = []
+  var radius
+  var origin = {x: 0, y: 0}
+  var container
+  var tooltip
 
-  var pi2 = 2 * Math.PI;
-  var Format = d3.format('%');
-
-  var cfg = {};
-  var axisCount;
-  var axes = [];
-  var radius;
-  var origin = { x: 0, y: 0 };
-  var container;
-  var tooltip;
-
-  var graphUpdated = function graphUpdated() {};
-  var graphUpdatesE = Bacon.fromBinder(function (sink) {
-    graphUpdated = sink;
-    return function () {
-      graphUpdated = function () {};
-    };
-  });
+  var graphUpdated = () => {}
+  const graphUpdatesE = Bacon.fromBinder(function(sink) {
+    graphUpdated = sink
+    return function() {
+      graphUpdated = () => {}
+    }
+  })
 
   function buildConfig(customCfg) {
     var cfg = {
@@ -39,334 +35,317 @@ var RadarChart = function RadarChart() {
       marginX: 70,
       marginY: 70,
       color: d3.scale.category10()
-    };
+    }
     if ('undefined' !== typeof customCfg) {
       for (var i in customCfg) {
         if ('undefined' !== typeof customCfg[i]) {
-          cfg[i] = customCfg[i];
+          cfg[i] = customCfg[i]
         }
       }
     }
-    return cfg;
+    return cfg
   }
   function setRadius(rad) {
-    radius = rad;
-    origin.x = origin.y = rad;
+    radius = rad
+    origin.x = origin.y = rad
   }
   function initAxes(axisTitles) {
-    var axisAngle = pi2 / axisCount;
-    axes = axisTitles.map(function (val, idx) {
-      return { x: Math.sin(idx * axisAngle), y: Math.cos(idx * axisAngle), title: val };
-    });
+    const axisAngle = pi2/axisCount
+    axes = axisTitles.map((val, idx) => (
+      { x: Math.sin(idx * axisAngle), y: Math.cos(idx * axisAngle), title: val }
+    ))
   }
   function getNormalizedAxis(index) {
-    var axis = axes[index];
-    return { x: radius * (1 - axis.x) - radius, y: radius * (1 - axis.y) - radius };
+    const axis = axes[index]
+    return { x: radius * (1 - axis.x) - radius, y: radius * (1 - axis.y) - radius }
   }
   function getAxisTitle(index) {
-    return axes[index]['title'];
+    return axes[index]['title']
   }
 
   // TODO polylines could be well suited for this
   function drawLevelLines(g, levels, radius, axisTitles) {
-    var axisCount = axisTitles.length;
+    const axisCount = axisTitles.length
     for (var j = 0; j < levels; j++) {
-      var distanceFromOrigin = radius * (j + 1) / levels;
-      g.selectAll(".levels").data(axisTitles).enter().append("line").attr("x1", function (d, i) {
-        return distanceFromOrigin * (1 - Math.sin(i * pi2 / axisCount));
-      }).attr("y1", function (d, i) {
-        return distanceFromOrigin * (1 - Math.cos(i * pi2 / axisCount));
-      }).attr("x2", function (d, i) {
-        return distanceFromOrigin * (1 - Math.sin((i + 1) * pi2 / axisCount));
-      }).attr("y2", function (d, i) {
-        return distanceFromOrigin * (1 - Math.cos((i + 1) * pi2 / axisCount));
-      }).attr("class", "level-line").attr('transform', 'translate(' + (radius - distanceFromOrigin) + ', ' + (radius - distanceFromOrigin) + ')');
+      var distanceFromOrigin = radius * (j+1)/levels
+      g.selectAll(".levels")
+        .data(axisTitles)
+        .enter()
+        .append("line")
+        .attr("x1", (d, i) => distanceFromOrigin*(1-Math.sin(i*pi2/axisCount)))
+        .attr("y1", (d, i) => distanceFromOrigin*(1-Math.cos(i*pi2/axisCount)))
+        .attr("x2", (d, i) => distanceFromOrigin*(1-Math.sin((i+1)*pi2/axisCount)))
+        .attr("y2", (d, i) => distanceFromOrigin*(1-Math.cos((i+1)*pi2/axisCount)))
+        .attr("class", "level-line")
+        .attr('transform', `translate(${radius-distanceFromOrigin}, ${radius-distanceFromOrigin})`)
     }
   }
 
   function drawLevelTitles(g, levels, radius, maxValue) {
-    var leftPadding = 5;
+    const leftPadding = 5
     for (var j = 0; j < levels; j++) {
-      var levelFactor = radius * ((j + 1) / levels);
-      g.append("text").attr("x", levelFactor).attr("y", 0).attr("class", "level-title").attr('transform', 'translate(' + (radius - levelFactor + leftPadding) + ', ' + (radius - levelFactor) + ')').text(Format((j + 1) * maxValue / levels));
+      var levelFactor = radius*((j+1)/levels)
+      g.append("text")
+        .attr("x", levelFactor)
+        .attr("y", 0)
+        .attr("class", "level-title")
+        .attr('transform', `translate(${radius-levelFactor + leftPadding}, ${radius-levelFactor})`)
+        .text(Format((j+1) * maxValue/levels))
     }
   }
 
   function drawAxes(g, radius, axisTitles) {
-    var factorLegend = .87;
-    var axisCount = axisTitles.length;
-    var axis = g.selectAll(".axis").data(axisTitles).enter().append("g").attr("class", "axis");
+    const factorLegend = .87
+    const axisCount = axisTitles.length
+    var axis = g.selectAll(".axis")
+          .data(axisTitles)
+          .enter()
+          .append("g")
+          .attr("class", "axis")
 
-    axis.append("line").attr("x1", radius).attr("y1", radius).attr("x2", function (d, i) {
-      return radius * (1 - Math.sin(i * pi2 / axisCount));
-    }).attr("y2", function (d, i) {
-      return radius * (1 - Math.cos(i * pi2 / axisCount));
-    }).attr("class", "axis-line");
+    axis.append("line")
+      .attr("x1", radius)
+      .attr("y1", radius)
+      .attr("x2", (d, i) => radius*(1-Math.sin(i*pi2/axisCount)))
+      .attr("y2", (d, i) => radius*(1-Math.cos(i*pi2/axisCount)))
+      .attr("class", "axis-line")
 
-    axis.append("text").attr("class", "axis-title").text(function (d) {
-      return d;
-    }).attr("text-anchor", "middle").attr("dy", "1.5em").attr("transform", "translate(0, -10)").attr("x", function (d, i) {
-      return radius * (1 - factorLegend * Math.sin(i * pi2 / axisCount)) - 60 * Math.sin(i * pi2 / axisCount);
-    }).attr("y", function (d, i) {
-      return radius * (1 - Math.cos(i * pi2 / axisCount)) - 20 * Math.cos(i * pi2 / axisCount);
-    });
+    axis.append("text")
+      .attr("class", "axis-title")
+      .text(d => d)
+      .attr("text-anchor", "middle")
+      .attr("dy", "1.5em")
+      .attr("transform", "translate(0, -10)")
+      .attr("x", (d, i) => radius*(1-factorLegend*Math.sin(i*pi2/axisCount)) - 60*Math.sin(i*pi2/axisCount))
+      .attr("y", (d, i) => radius*(1-Math.cos(i*pi2/axisCount)) - 20*Math.cos(i*pi2/axisCount))
   }
   function translateByMargin(elem) {
-    elem.attr('transform', 'translate(' + cfg.marginX / 2 + ', ' + cfg.marginY / 2 + ')');
+    elem.attr('transform', `translate(${cfg.marginX/2}, ${cfg.marginY/2})`)
   }
 
   function drawTooltip(g) {
-    tooltip = g.append('text').attr('class', 'tooltip').style('opacity', 0).style('font-family', 'sans-serif').style('font-size', '13px');
+    tooltip = g.append('text')
+      .attr('class', 'tooltip')
+      .style('opacity', 0)
+      .style('font-family', 'sans-serif')
+      .style('font-size', '13px')
   }
 
   function dragmove(d) {
-    var _this = this;
+    const eventC = getEventPointWithinSvg()
+    const closest = getTipClosestToPoint(eventC)
+    const point = d3.select(closest.el)
+    const group = d3.select(closest.el.parentNode)
 
-    var eventC = getEventPointWithinSvg();
-    var closest = getTipClosestToPoint(eventC);
-    var point = d3.select(closest.el);
-    var group = d3.select(closest.el.parentNode);
+    const axisV = getNormalizedAxis(point.attr('data-axis'))
+    const newCoord = constrainLength(origin, newPointOnAxis(origin, axisV, eventC), axisV, radius)
+    const newValue = distanceBetweenPoints(origin, newCoord) / radius
 
-    var axisV = getNormalizedAxis(point.attr('data-axis'));
-    var newCoord = constrainLength(origin, newPointOnAxis(origin, axisV, eventC), axisV, radius);
-    var newValue = distanceBetweenPoints(origin, newCoord) / radius;
-
-    point.attr('cx', newCoord.x);
-    point.attr('cy', newCoord.y);
-    point.attr('data-value', newValue);
-    redrawPolygonToMatchTips(group.select(function () {
-      return _this.parentNode.parentNode;
-    }));
-    graphUpdated(readRatingValues());
+    point.attr('cx', newCoord.x)
+    point.attr('cy', newCoord.y)
+    point.attr('data-value', newValue)
+    redrawPolygonToMatchTips(group.select(() => this.parentNode.parentNode))
+    graphUpdated(readRatingValues())
 
     function constrainLength(origin, point, direction, maxLength) {
-      var normalized = vSub(point, origin);
-      var length = vLength(normalized);
-      if (vDot(normalized, direction) <= 0) {
-        return origin;
-      }
+      const normalized = vSub(point, origin)
+      const length = vLength(normalized)
+      if (vDot(normalized, direction) <= 0) { return origin }
       if (length > maxLength) {
-        var lengthFactor = maxLength / length;
-        return vAdd(origin, vMake(normalized.x * lengthFactor, normalized.y * lengthFactor));
+        const lengthFactor = maxLength / length
+        return vAdd(origin, vMake(normalized.x * lengthFactor, normalized.y * lengthFactor))
       }
-      return point;
+      return point
     }
   }
 
-  function vMake(x, y) {
-    return { x: x, y: y };
-  }
-  function vSub(a, b) {
-    return { x: a.x - b.x, y: a.y - b.y };
-  }
-  function vAdd(a, b) {
-    return { x: a.x + b.x, y: a.y + b.y };
-  }
-  function vMulS(a, s) {
-    return { x: a.x * s, y: a.y * s };
-  }
-  function vLength(a) {
-    return Math.sqrt(a.x * a.x + a.y * a.y);
-  }
+  function vMake(x, y) { return { x: x, y: y } }
+  function vSub(a, b) { return { x: a.x-b.x, y: a.y-b.y } }
+  function vAdd(a, b) { return { x: a.x+b.x, y: a.y+b.y } }
+  function vMulS(a, s) { return { x: a.x*s, y: a.y*s } }
+  function vLength(a) { return Math.sqrt(a.x*a.x + a.y*a.y) }
   // Project a onto b
-  function vProjection(a, b) {
-    return vMulS(b, vDot(a, b) / vDot(b, b));
-  }
-  function vDot(a, b) {
-    return a.x * b.x + a.y * b.y;
-  }
+  function vProjection(a, b) { return vMulS(b, vDot(a, b) / vDot(b, b)) }
+  function vDot (a, b) { return a.x*b.x + a.y*b.y }
 
   function newPointOnAxis(origin, vAxis, offsetC) {
-    var vOffset = vSub(offsetC, origin);
-    return vAdd(origin, vProjection(vOffset, vAxis));
+    const vOffset = vSub(offsetC, origin)
+    return vAdd(origin, vProjection(vOffset, vAxis))
   }
   function distanceBetweenPoints(oldc, newc) {
-    return vLength(vSub(newc, oldc));
+    return vLength(vSub(newc, oldc))
   }
 
-  var dragTip = d3.behavior.drag().origin(function (d) {
-    return getTipClosestToPoint(getEventPointWithinSvg());
-  }).on('drag', dragmove);
+  const dragTip = d3.behavior.drag()
+    .origin((d) => getTipClosestToPoint(getEventPointWithinSvg()))
+    .on('drag', dragmove)
 
   function getEventPointWithinSvg() {
-    var _d3$mouse = d3.mouse(container.select('svg')[0][0]);
-
-    var _d3$mouse2 = _slicedToArray(_d3$mouse, 2);
-
-    var px = _d3$mouse2[0];
-    var py = _d3$mouse2[1];
-
-    return { x: px - cfg.marginX / 2, y: py - cfg.marginY / 2 };
+    const [px, py] = d3.mouse(container.select('svg')[0][0])
+    return {x: px - cfg.marginX/2, y: py - cfg.marginY/2}
   }
 
   function getTipClosestToPoint(selectedPoint) {
-    var tips = container.selectAll('g.area-tips circle')[0].map(function (circle) {
-      return { x: circle.getAttribute('cx'), y: circle.getAttribute('cy'), el: circle };
-    });
+    const tips = container.selectAll('g.area-tips circle')[0]
+      .map(circle => ({ x: circle.getAttribute('cx'), y: circle.getAttribute('cy'), el: circle }))
 
-    var closest = tips.map(function (point) {
-      return { l: distanceBetweenPoints(point, selectedPoint), x: point.x, y: point.y, el: point.el };
-    }).reduce(function (prev, curr) {
-      return curr.l < prev.l ? curr : prev;
-    });
-    return closest;
+    const closest = tips
+      .map(point => ({ l: distanceBetweenPoints(point, selectedPoint), x: point.x, y: point.y, el: point.el }))
+      .reduce((prev, curr) => curr.l < prev.l ? curr : prev)
+    return closest
   }
 
   function redrawPolygonToMatchTips(g) {
-    var circles = container.selectAll('svg .radar-data circle');
-    var vertices = circles.map(function (c) {
-      return c.map(function (tip) {
-        return { x: tip.getAttribute('cx'), y: tip.getAttribute('cy') };
-      });
-    });
-    drawGraphPolygon(g, vertices, false);
+    const circles = container.selectAll('svg .radar-data circle')
+    const vertices = circles.map(c => c.map(tip => ({ x: tip.getAttribute('cx'), y: tip.getAttribute('cy') })))
+    drawGraphPolygon(g, vertices, false)
   }
 
   function readRatingValues() {
-    var circles = container.selectAll('svg .radar-data circle');
-    return circles[0].map(function (svge) {
-      return { value: svge.getAttribute('data-value'), title: getAxisTitle(svge.getAttribute('data-axis')) };
-    });
+    const circles = container.selectAll('svg .radar-data circle')
+    return circles[0].map(
+      svge => ({ value: svge.getAttribute('data-value'), title: getAxisTitle(svge.getAttribute('data-axis')) })
+    )
   }
 
   function drawGraph(g, vertices) {
-    drawGraphPolygon(g, vertices, true);
-    drawGraphTips(g, vertices);
+    drawGraphPolygon(g, vertices, true)
+    drawGraphTips(g, vertices)
   }
 
   function drawGraphPolygon(g, vertices, animate) {
-    var area = g.selectAll('polygon').data(vertices);
+    var area = g.selectAll('polygon')
+          .data(vertices)
 
-    area.exit().transition().duration(500).attr('points', function (d) {
-      return d.reduce(function (prev, curr) {
-        return prev + ' ' + origin.x + ',' + origin.y;
-      }, '');
-    }).remove();
+    area.exit().transition().duration(500)
+      .attr('points', d => d.reduce((prev, curr) => `${prev} ${origin.x},${origin.y}`, ''))
+      .remove()
 
-    area.enter().append('polygon').attr('class', function (d, i) {
-      return 'radar-chart-serie' + i;
-    }).style('stroke-width', '2px').style('stroke', function (d, i) {
-      return cfg.color(i);
-    }).style('fill', function (d, i) {
-      return cfg.color(i);
-    }).style('fill-opacity', cfg.opacityArea).attr('points', function (d) {
-      return d.reduce(function (prev, curr) {
-        return prev + ' ' + origin.x + ',' + origin.y;
-      }, '');
-    }).on('mouseover', function (d) {
-      var selected = 'polygon.' + d3.select(this).attr('class');
+    area.enter()
+      .append('polygon')
+      .attr('class', (d, i) => `radar-chart-serie${i}`)
+      .style('stroke-width', '2px')
+      .style('stroke', (d, i) => cfg.color(i))
+      .style('fill', (d, i) => cfg.color(i))
+      .style('fill-opacity', cfg.opacityArea)
+      .attr('points', d => d.reduce((prev, curr) => `${prev} ${origin.x},${origin.y}`, ''))
+      .on('mouseover', function (d) {
+        var selected = 'polygon.' + d3.select(this).attr('class')
 
-      g.selectAll('polygon').transition(200).style('fill-opacity', 0.1);
+        g.selectAll('polygon').transition(200).style('fill-opacity', 0.1)
 
-      g.selectAll(selected).transition(200).style('fill-opacity', .7);
-    }).on('mouseout', function () {
-      g.selectAll('polygon').transition(200).style('fill-opacity', cfg.opacityArea);
-    });
+        g.selectAll(selected).transition(200).style('fill-opacity', .7)
+      })
+      .on('mouseout', function() {
+        g.selectAll('polygon').transition(200).style('fill-opacity', cfg.opacityArea)
+      })
 
-    var initialSelection = animate ? area.transition().duration(500) : area;
-    initialSelection.attr('points', function (d) {
-      return d.reduce(function (prev, curr) {
-        return prev + ' ' + curr.x + ',' + curr.y;
-      }, '');
-    });
+    const initialSelection = animate ? area.transition().duration(500) : area
+    initialSelection.attr('points', d => d.reduce((prev, curr) => `${prev} ${curr.x},${curr.y}`, ''))
   }
 
   function drawGraphTips(g, vertices) {
-    var gtips = g.selectAll('g.area-tips').data(vertices);
+    const gtips = g.selectAll('g.area-tips')
+            .data(vertices)
 
-    gtips.enter().append('g').attr('class', function (d, i) {
-      return 'area-tips radar-chart-serie' + i;
-    }).style('fill', function (d, i) {
-      return cfg.color(i);
-    }).style('fill-opacity', .9);
+    gtips.enter().append('g')
+      .attr('class', (d, i) => `area-tips radar-chart-serie${i}`)
+      .style('fill', (d, i) => cfg.color(i))
+      .style('fill-opacity', .9)
 
-    gtips.exit().remove();
+    gtips.exit().remove()
 
-    var tips = gtips.selectAll('circle').data(function (d) {
-      return d;
-    });
+    const tips = gtips.selectAll('circle')
+            .data(d => d)
 
-    tips.exit().remove();
+    tips.exit().remove()
 
-    var enter = tips.enter().append('circle').attr('r', cfg.tipRadius).attr('data-axis', function (vertex, i) {
-      return i;
-    }).attr('data-value', function (vertex, i) {
-      return vertex.value;
-    }).on('mouseover', function (d) {
-      var tip = d3.select(this);
-      tooltip.attr('x', parseFloat(tip.attr('cx')) - 10).attr('y', parseFloat(tip.attr('cy')) - 10).text(Format(tip.attr('data-value'))).transition(200).style('opacity', 1);
+    const enter = tips.enter()
+      .append('circle')
+      .attr('r', cfg.tipRadius)
+      .attr('data-axis', (vertex, i) => i)
+      .attr('data-value', (vertex, i) => vertex.value)
+      .on('mouseover', function (d) {
+        const tip = d3.select(this)
+        tooltip
+          .attr('x', parseFloat(tip.attr('cx')) - 10)
+          .attr('y', parseFloat(tip.attr('cy')) - 10)
+          .text(Format(tip.attr('data-value')))
+          .transition(200)
+          .style('opacity', 1)
 
-      var selected = 'polygon.' + tip.attr('class');
+        const selected = 'polygon.' + tip.attr('class')
 
-      g.selectAll('polygon').transition(200).style('fill-opacity', 0.1);
+        g.selectAll('polygon').transition(200).style('fill-opacity', 0.1)
 
-      g.selectAll(selected).transition(200).style('fill-opacity', .7);
-    }).on('mouseout', function () {
-      tooltip.transition(200).style('opacity', 0);
+        g.selectAll(selected).transition(200).style('fill-opacity', .7)
+      })
+      .on('mouseout', function() {
+        tooltip.transition(200).style('opacity', 0)
 
-      g.selectAll('polygon').transition(200).style('fill-opacity', cfg.opacityArea);
-    });
+        g.selectAll('polygon').transition(200).style('fill-opacity', cfg.opacityArea)
+      })
 
-    tips.transition().duration(500).attr('cx', function (vertex, i) {
-      return vertex.x;
-    }).attr('cy', function (vertex, i) {
-      return vertex.y;
-    });
+    tips
+      .transition().duration(500)
+      .attr('cx', (vertex, i) => vertex.x )
+      .attr('cy', (vertex, i) => vertex.y )
   }
 
   return {
-    reset: function reset(containerId, data, options) {
-      cfg = buildConfig(options);
-      container = d3.select(containerId);
+    reset: function(containerId, data, options) {
+      cfg = buildConfig(options)
+      container = d3.select(containerId)
 
-      var axisTitles = data[0].map(function (i) {
-        return i.axis;
-      });
-      axisCount = axisTitles.length;
-      setRadius(Math.min(cfg.w / 2, cfg.h / 2));
-      initAxes(axisTitles);
+      var axisTitles = data[0].map(i => i.axis)
+      axisCount = axisTitles.length
+      setRadius(Math.min(cfg.w/2, cfg.h/2))
+      initAxes(axisTitles)
 
-      container.select('svg').remove();
+      container.select('svg').remove()
 
       // Add padding and translate to make space for legends
-      var svg = container.append("svg").attr("width", cfg.w + cfg.marginX).attr("height", cfg.h + cfg.marginY);
+      var svg = container
+            .append("svg")
+            .attr("width", cfg.w + cfg.marginX)
+            .attr("height", cfg.h + cfg.marginY)
 
-      var g = svg.append('g').attr('class', 'radar-axes');
-      translateByMargin(g);
+      var g = svg
+            .append('g')
+            .attr('class', 'radar-axes')
+      translateByMargin(g)
 
-      drawLevelLines(g, cfg.levels, radius, axisTitles);
-      drawLevelTitles(g, cfg.levels, radius, cfg.maxValue);
-      drawAxes(g, radius, axisTitles);
+      drawLevelLines(g, cfg.levels, radius, axisTitles)
+      drawLevelTitles(g, cfg.levels, radius, cfg.maxValue)
+      drawAxes(g, radius, axisTitles)
 
-      return this;
+      return this
     },
-    draw: function draw(ratings, enableManipulation) {
+    draw: function(ratings, enableManipulation) {
 
-      var svg = container.select('svg');
+      var svg = container.select('svg')
 
       // TODO look for adding elegance here, just a quick hack for now
-      var g = svg.select('.radar-data');
+      var g = svg.select('.radar-data')
       if (!g[0][0]) {
-        g = svg.append('g').attr('class', 'radar-data');
-        translateByMargin(g);
-        drawTooltip(g);
+        g = svg.append('g').attr('class', 'radar-data')
+        translateByMargin(g)
+        drawTooltip(g)
       }
 
-      var axisAngle = pi2 / axisCount;
+      const axisAngle = pi2/axisCount
 
-      var vertices = ratings.map(function (rating, idx) {
-        return rating.map(function (subRating, i) {
-          return { x: radius * (1 - subRating.value * Math.sin(i * axisAngle)),
-            y: radius * (1 - subRating.value * Math.cos(i * axisAngle)),
-            value: subRating.value };
-        });
-      });
-      drawGraph(g, vertices);
+      const vertices = ratings.map((rating, idx) =>
+                                   rating.map((subRating, i) =>
+                                              ({x: radius * (1 - subRating.value * Math.sin(i*axisAngle)),
+                                                y: radius * (1 - subRating.value * Math.cos(i*axisAngle)),
+                                                value: subRating.value })))
+      drawGraph(g, vertices)
 
       if (enableManipulation) {
-        svg.call(dragTip);
+	  svg.call(dragTip)
       }
-      return graphUpdatesE;
+      return graphUpdatesE
     }
-  };
-};
+  }
+}

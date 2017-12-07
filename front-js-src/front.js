@@ -19,8 +19,7 @@ $(document).ready(function () {
   showPageOnLoad(readyE)
 
   function showPageOnLoad(readyE) {
-    const urlParts = readUrl()
-    const urlReadyE = readyE.map(() => urlParts)
+    const urlReadyE = readyE.map(readUrl)
     parseUrlAndShow(urlReadyE)
   }
 
@@ -39,14 +38,22 @@ $(document).ready(function () {
   }
 
   function populateMovieAndUserSelections() {
-    const stream = Bacon.combineTemplate({
-      movies: getMoviesE()
-    })
-      .doAction(ratersMovies => {
-        $movieSelect.append(optionsFromList(ratersMovies.movies))
-        $movieDatalist.append(optionsFromList(ratersMovies.movies))
+    return Bacon.fromPromise($.ajax('/api/ratings/movies'))
+      .doAction(movies => {
+        $movieSelect.empty().append(optionsFromList(movies))
+        $movieDatalist.empty().append(optionsFromList(movies))
       })
-    return stream
+
+    function optionsFromList(list) {
+      const frag = document.createDocumentFragment()
+      list.forEach((item) => {
+        const option = document.createElement('option')
+        option.value = item
+        option.text = item
+        frag.appendChild(option)
+      })
+      return frag
+    }
   }
 
   function addPopstateHandler() {
@@ -61,17 +68,25 @@ $(document).ready(function () {
             .map(urlParts => ({movie: urlParts[1], rater: urlParts[3]}))
             .doAction(p => { $movieSelect.val(p.movie) })
             .doAction(() => $('#controls').fadeIn(250))
-    // TODO messy, refactor for clean transition points
-    loadAndShowRatings(ratingE)
 
     urlE
       .filter(urlParts => urlParts[0] === 'new-rating')
       .onValue(() => transitionToNewRating())
 
-    urlE
-      .filter(urlParts => urlParts.length === 0)
-      .doAction(() => $('#controls').fadeIn(250))
-      .onValue(() => showRandomRating(Bacon.once()))
+    const randomMovie = () => {
+      const movieCount = document.getElementById('movie-datalist').children.length
+      const randomIndex = Math.floor(Math.random() * movieCount)
+      const randomElement = document.getElementById('movie-datalist').children.item(randomIndex)
+      return { movie: randomElement.value }
+    }
+
+    const randomE = urlE
+          .filter(urlParts => urlParts.length === 0)
+          .map(randomMovie)
+          .doAction(p => { $movieSelect.val(p.movie) })
+          .doAction(() => $('#controls').fadeIn(250))
+
+    loadAndShowRatings(ratingE.merge(randomE))
   }
 
   function addRatingSelectionHandlers() {
@@ -130,6 +145,7 @@ $(document).ready(function () {
       .flatMapLatest(rating => saveRatingE($movieInput.val(), $raterInput.val(), rating))
       .map(() => ({ movie: $movieInput.val() }))
       .doAction(() => resetNewRating())
+      .flatMapLatest((movie) => populateMovieAndUserSelections().map(() => movie)) // TODO check if this works
       .onValue((movie) => transitionToRating(movie))
 
     function areUserAndMovieInputsValid() {
@@ -167,17 +183,6 @@ $(document).ready(function () {
     $('#new-rating-input').hide(250)
     $movieInput.val('')
   }
-
-  function optionsFromList(list) {
-    var frag = document.createDocumentFragment()
-    list.forEach((item) => {
-      var option = document.createElement('option')
-      option.value = item
-      option.text = item
-      frag.appendChild(option)
-    })
-    return frag
-  }
 })
 
 function getRandomRatingE(movie, user) {
@@ -188,10 +193,6 @@ function getRatingsE(movie, user, limit) {
   return user && user.length > 0 ?
     Bacon.fromPromise($.ajax(`/api/ratings/${movie}/user/${user}`)) :
     Bacon.fromPromise($.ajax(`/api/ratings/${movie}/limit/${limit}`))
-}
-
-function getMoviesE() {
-  return Bacon.fromPromise($.ajax('/api/ratings/movies'))
 }
 
 function saveRatingE(movie, user, rating) {

@@ -1,223 +1,204 @@
-'use strict';
-
 $(document).ready(function () {
-  jQueryAjaxSetup();
+  jQueryAjaxSetup()
 
-  var $movieSelect = $('select[name=movie]');
-  var $newRatingBtn = $('#rate-movie');
-  var $raterInput = $('#rater-input');
-  var $movieInput = $('#movie-input');
-  var $movieDatalist = $('#movie-datalist');
+  const $movieSelect = $('select[name=movie]')
+  const $newRatingBtn = $('#rate-movie')
+  const $raterInput = $('#rater-input')
+  const $movieInput = $('#movie-input')
+  const $movieDatalist = $('#movie-datalist')
 
   // TODO make a nicer package
-  var drawChart = makeRadarChart('#chart');
+  const drawChart = makeRadarChart('#chart')
 
-  var readyE = populateMovieAndUserSelections();
+  const readyE = populateMovieAndUserSelections()
 
-  addPopstateHandler();
-  addRatingSelectionHandlers();
-  addNewRatingHandlers();
+  addPopstateHandler()
+  addRatingSelectionHandlers()
+  addNewRatingHandlers()
 
-  showPageOnLoad(readyE);
+  showPageOnLoad(readyE)
 
   function showPageOnLoad(readyE) {
-    var urlParts = readUrl();
-    var urlReadyE = readyE.map(function () {
-      return urlParts;
-    });
-    parseUrlAndShow(urlReadyE);
+    const urlReadyE = readyE.map(readUrl)
+    parseUrlAndShow(urlReadyE)
   }
 
   function readUrl() {
-    return decodeURI(window.location.pathname).split('/').filter(function (part) {
-      return part.length > 0;
-    });
+    return decodeURI(window.location.pathname).split('/')
+      .filter(part => part.length > 0)
   }
 
   function urlForMovieAndRater(movie, rater) {
-    var movieUrl = '/movie/' + movie;
-    return rater && rater.length > 0 ? movieUrl + '/reviewer/' + rater : movieUrl;
+    const movieUrl = `/movie/${movie}`
+    return rater && rater.length > 0 ? `${movieUrl}/reviewer/${rater}` : movieUrl
   }
 
   function updateHistory(url) {
-    history.pushState(undefined, undefined, url);
+    history.pushState(undefined, undefined, url)
   }
 
   function populateMovieAndUserSelections() {
-    var stream = Bacon.combineTemplate({
-      movies: getMoviesE()
-    }).doAction(function (ratersMovies) {
-      $movieSelect.append(optionsFromList(ratersMovies.movies));
-      $movieDatalist.append(optionsFromList(ratersMovies.movies));
-    });
-    return stream;
+    return Bacon.fromPromise($.ajax('/api/ratings/movies'))
+      .doAction(movies => {
+        $movieSelect.empty().append(optionsFromList(movies))
+        $movieDatalist.empty().append(optionsFromList(movies))
+      })
+
+    function optionsFromList(list) {
+      const frag = document.createDocumentFragment()
+      list.forEach((item) => {
+        const option = document.createElement('option')
+        option.value = item
+        option.text = item
+        frag.appendChild(option)
+      })
+      return frag
+    }
   }
 
   function addPopstateHandler() {
-    var stream = $(window).asEventStream('popstate').map(readUrl);
-    parseUrlAndShow(stream);
+    const stream = $(window).asEventStream('popstate')
+            .map(readUrl)
+    parseUrlAndShow(stream)
   }
 
   function parseUrlAndShow(urlE) {
-    var ratingE = urlE.filter(function (urlParts) {
-      return urlParts[0] === 'movie' && (!urlParts[2] || urlParts[2] === 'reviewer');
-    }).map(function (urlParts) {
-      return { movie: urlParts[1], rater: urlParts[3] };
-    }).doAction(function (p) {
-      $movieSelect.val(p.movie);
-    }).doAction(function () {
-      return $('#controls').fadeIn(250);
-    });
-    // TODO messy, refactor for clean transition points
-    loadAndShowRatings(ratingE);
+    const ratingE = urlE
+            .filter(urlParts => urlParts[0] === 'movie' && (!urlParts[2] || urlParts[2] === 'reviewer'))
+            .map(urlParts => ({movie: urlParts[1], rater: urlParts[3]}))
+            .doAction(p => { $movieSelect.val(p.movie) })
+            .doAction(() => $('#controls').fadeIn(250))
 
-    urlE.filter(function (urlParts) {
-      return urlParts[0] === 'new-rating';
-    }).onValue(function () {
-      return transitionToNewRating();
-    });
+    urlE
+      .filter(urlParts => urlParts[0] === 'new-rating')
+      .onValue(() => transitionToNewRating())
 
-    urlE.filter(function (urlParts) {
-      return urlParts.length === 0;
-    }).doAction(function () {
-      return $('#controls').fadeIn(250);
-    }).onValue(function () {
-      return showRandomRating(Bacon.once());
-    });
+    const randomMovie = () => {
+      const movieCount = document.getElementById('movie-datalist').children.length
+      const randomIndex = Math.floor(Math.random() * movieCount)
+      const randomElement = document.getElementById('movie-datalist').children.item(randomIndex)
+      return { movie: randomElement.value }
+    }
+
+    const randomE = urlE
+          .filter(urlParts => urlParts.length === 0)
+          .map(randomMovie)
+          .doAction(p => { $movieSelect.val(p.movie) })
+          .doAction(() => $('#controls').fadeIn(250))
+
+    loadAndShowRatings(ratingE.merge(randomE))
   }
 
   function addRatingSelectionHandlers() {
-    var movieSelectionE = $movieSelect.asEventStream('change');
+    const movieSelectionE = $movieSelect.asEventStream('change')
 
-    var selectionE = movieSelectionE.filter(areSelectionsValid).map(function () {
-      return { movie: $movieSelect.val() };
-    }).doAction(function (p) {
-      return updateHistory(urlForMovieAndRater(p.movie));
-    });
+    const selectionE = movieSelectionE
+            .filter(areSelectionsValid)
+            .map(() => ({movie: $movieSelect.val()}))
+            .doAction(p => updateHistory(urlForMovieAndRater(p.movie)))
 
-    loadAndShowRatings(selectionE);
+    loadAndShowRatings(selectionE)
 
     function areSelectionsValid() {
-      return $movieSelect.val().length > 0;
+      return $movieSelect.val().length > 0
     }
   }
 
   function loadAndShowRatings(eventStream) {
-    eventStream.flatMapLatest(function (p) {
-      return getRatingsE(p.movie, p.rater, 10);
-    }).doAction(function () {
-      return $('#chart').fadeIn(250);
-    }).onValue(drawChart);
+    eventStream
+      .flatMapLatest(p => getRatingsE(p.movie, p.rater, 10))
+      .doAction(() => $('#chart').fadeIn(250))
+      .onValue(drawChart)
   }
 
   function addNewRatingHandlers() {
-    $newRatingBtn.asEventStream('click').onValue(function () {
-      return transitionToNewRating();
-    });
+    $newRatingBtn.asEventStream('click')
+      .onValue(() => transitionToNewRating())
 
-    var raterInputE = $raterInput.asEventStream('input cut paste');
-    var movieInputE = $movieInput.asEventStream('input cut paste');
+    const raterInputE = $raterInput.asEventStream('input cut paste')
+    const movieInputE = $movieInput.asEventStream('input cut paste')
 
-    var drawNewChartF = makeRadarChart('#new-rating-chart');
+    const drawNewChartF = makeRadarChart('#new-rating-chart')
 
-    var canUserRateE = raterInputE.merge(movieInputE).debounce(500).filter(areUserAndMovieInputsValid).flatMapLatest(function () {
-      return getRatingsE($movieInput.val(), $raterInput.val());
-    });
+    const canUserRateE = raterInputE.merge(movieInputE)
+      .debounce(500)
+      .filter(areUserAndMovieInputsValid)
+      .flatMapLatest(() => getRatingsE($movieInput.val(), $raterInput.val()))
 
-    var doneE = $('#new-rating-input .ok-button').asEventStream('click').filter(areUserAndMovieInputsValid);
+    const doneE = $('#new-rating-input .ok-button').asEventStream('click')
+      .filter(areUserAndMovieInputsValid)
 
-    $('#new-rating-input .cancel-button').asEventStream('click').doAction(function () {
-      return resetNewRating();
-    }).onValue(function () {
-      return window.history.back();
-    });
+    $('#new-rating-input .cancel-button').asEventStream('click')
+      .doAction(() => resetNewRating())
+      .onValue(() => window.history.back())
 
-    canUserRateE.onValue(function () {
-      showError(true);$('#new-rating-chart').hide();
-    });
+    canUserRateE.onValue(() => { showError(true); $('#new-rating-chart').hide() })
 
-    canUserRateE.errors().mapError(function () {
-      return true;
-    }).doAction(function () {
-      return showError(false);
-    }).doAction(function () {
-      return $('#new-rating-chart').show(250);
-    }).flatMapLatest(function () {
-      return drawNewChartF(defaultRating($raterInput.val(), $movieInput.val()), true);
-    }).toProperty().sampledBy(doneE).flatMapLatest(function (rating) {
-      return saveRatingE($movieInput.val(), $raterInput.val(), rating);
-    }).map(function () {
-      return { movie: $movieInput.val() };
-    }).doAction(function () {
-      return resetNewRating();
-    }).onValue(function (movie) {
-      return transitionToRating(movie);
-    });
+    canUserRateE
+      .errors()
+      .mapError(() => true)
+      .doAction(() => showError(false))
+      .doAction(() => $('#new-rating-chart').show(250))
+      .flatMapLatest(() => drawNewChartF(defaultRating($raterInput.val(), $movieInput.val()), true))
+      .toProperty()
+      .sampledBy(doneE)
+      .flatMapLatest(rating => saveRatingE($movieInput.val(), $raterInput.val(), rating))
+      .map(() => ({ movie: $movieInput.val() }))
+      .doAction(() => resetNewRating())
+      .flatMapLatest((movie) => populateMovieAndUserSelections().map(() => movie)) // TODO check if this works
+      .onValue((movie) => transitionToRating(movie))
 
     function areUserAndMovieInputsValid() {
-      return $raterInput.val().length > 0 && $movieInput.val().length > 0;
+      return $raterInput.val().length > 0 && $movieInput.val().length > 0
     }
     function showError(visible) {
-      var $error = $('#new-rating-input .rating-error');
-      if (visible) $error.show(250);else $error.hide(250);
+      const $error = $('#new-rating-input .rating-error')
+      if (visible) $error.show(250)
+      else $error.hide(250)
     }
   }
 
   function showRandomRating(readyE) {
-    readyE.flatMapLatest(function () {
-      return getRandomRatingE();
-    }).doAction(function () {
-      return $('#chart').fadeIn(250);
-    }).onValue(drawChart);
+    readyE
+      .flatMapLatest(() => getRandomRatingE())
+      .doAction(() => $('#chart').fadeIn(250))
+      .onValue(drawChart)
   }
 
   function transitionToRating(p) {
-    updateHistory(urlForMovieAndRater(p.movie, p.rater));
-    $('#controls').fadeIn(250);
-    loadAndShowRatings(Bacon.once(p));
+    updateHistory(urlForMovieAndRater(p.movie, p.rater))
+    $('#controls').fadeIn(250)
+    loadAndShowRatings(Bacon.once(p))
   }
 
   function transitionToNewRating() {
-    updateHistory('/new-rating');
-    $('#controls').fadeOut(250);
-    $('#chart').fadeOut(250);
-    $('#new-rating-chart').hide();
-    $('#new-rating-input').show(250);
+    updateHistory('/new-rating')
+    $('#controls').fadeOut(250)
+    $('#chart').fadeOut(250)
+    $('#new-rating-chart').hide()
+    $('#new-rating-input').show(250)
   }
 
   function resetNewRating() {
-    $('#new-rating-input').hide(250);
-    $movieInput.val('');
+    $('#new-rating-input').hide(250)
+    $movieInput.val('')
   }
-
-  function optionsFromList(list) {
-    var frag = document.createDocumentFragment();
-    list.forEach(function (item) {
-      var option = document.createElement('option');
-      option.value = item;
-      option.text = item;
-      frag.appendChild(option);
-    });
-    return frag;
-  }
-});
+})
 
 function getRandomRatingE(movie, user) {
-  return Bacon.fromPromise($.ajax('/api/ratings/random'));
+  return Bacon.fromPromise($.ajax('/api/ratings/random'))
 }
 
 function getRatingsE(movie, user, limit) {
-  return user && user.length > 0 ? Bacon.fromPromise($.ajax('/api/ratings/' + movie + '/user/' + user)) : Bacon.fromPromise($.ajax('/api/ratings/' + movie + '/limit/' + limit));
-}
-
-function getMoviesE() {
-  return Bacon.fromPromise($.ajax('/api/ratings/movies'));
+  return user && user.length > 0 ?
+    Bacon.fromPromise($.ajax(`/api/ratings/${movie}/user/${user}`)) :
+    Bacon.fromPromise($.ajax(`/api/ratings/${movie}/limit/${limit}`))
 }
 
 function saveRatingE(movie, user, rating) {
-  return Bacon.fromPromise($.ajax({ url: '/api/ratings/' + movie + '/user/' + user,
-    type: 'POST',
-    data: rating }));
+  return Bacon.fromPromise($.ajax({url: '/api/ratings/' + movie + '/user/' + user,
+                                   type: 'POST',
+                                   data: rating}))
 }
 
 function defaultRating(rater, movie) {
@@ -231,113 +212,133 @@ function defaultRating(rater, movie) {
     ratingSound: 5,
     ratingVisuality: 5,
     ratingCharacters: 5
-  }];
+  }]
 }
 
 function makeRadarChart(parentSelector) {
-  var width = 500,
-      height = 500;
-  var colors = d3.scale.category10();
-  var colorsEditable = d3.scale.ordinal().domain(Array.from({ length: 5 }, function (v, idx) {
-    return idx;
-  })).range(['#30ffff', '#30ffaa', '#30ff55', '#30aa33', '#306600']);
-  var radarChart = RadarChart();
-  var axisCount = undefined;
+  const width = 500, height = 500
+  const colors = d3.scale.category10()
+  const colorsEditable = d3.scale.ordinal()
+          .domain(Array.from({length: 5}, (v, idx) => idx))
+          .range(['#30ffff', '#30ffaa', '#30ff55', '#30aa33', '#306600'])
+  const radarChart = RadarChart()
+  var axisCount = undefined
 
-  return drawChart;
+  return drawChart
 
   function isAxisUpdateNeeded(newAxisCount) {
     if (axisCount !== newAxisCount) {
-      axisCount = newAxisCount;
-      return true;
+      axisCount = newAxisCount
+      return true
     } else {
-      return false;
+      return false
     }
   }
 
   function mapDisplayDataToSerial(data) {
-    var mapping = {
+    const mapping = {
       Plot: 'ratingPlot',
       Script: 'ratingScript',
       Hotness: 'ratingHotness',
       Sound: 'ratingSound',
       Visuality: 'ratingVisuality',
       Characters: 'ratingCharacters'
-    };
-    var out = {};
-    data.forEach(function (rating) {
-      out[mapping[rating.title]] = rating.value;
-    });
-    return out;
+    }
+    var out = {}
+    data.forEach(rating => {
+      out[mapping[rating.title]] = rating.value
+    })
+    return out
   }
 
   // [{movieName, raterName}]
   function drawChart(ratings, editable) {
-    var colorScale = editable ? colorsEditable : colors;
-    var legendTitles = ratings.map(function (rating) {
-      return '' + rating.raterName;
-    });
+    const colorScale = editable ? colorsEditable : colors
+    var legendTitles = ratings.map(rating => `${rating.raterName}`)
 
-    var data = ratings.map(function (rating) {
-      return [{ axis: 'Plot', value: rating.ratingPlot / 10 }, { axis: 'Script', value: rating.ratingScript / 10 }, { axis: 'Hotness', value: rating.ratingHotness / 10 }, { axis: 'Sound', value: rating.ratingSound / 10 }, { axis: 'Visuality', value: rating.ratingVisuality / 10 }, { axis: 'Characters', value: rating.ratingCharacters / 10 }];
-    });
+    var data = ratings.map(rating => [
+      {axis:'Plot',       value:rating.ratingPlot/10},
+      {axis:'Script',     value:rating.ratingScript/10},
+      {axis:'Hotness',    value:rating.ratingHotness/10},
+      {axis:'Sound',      value:rating.ratingSound/10},
+      {axis:'Visuality',  value:rating.ratingVisuality/10},
+      {axis:'Characters', value:rating.ratingCharacters/10}
+    ])
 
     if (isAxisUpdateNeeded(6)) {
-      radarChart.reset(parentSelector, data, { w: width, maxValue: 1, levels: 6, color: colorScale });
+      radarChart.reset(parentSelector, data, { w: width, maxValue: 1, levels: 6, color: colorScale })
     }
 
-    var updatesE = radarChart.draw(data, editable === true ? true : false);
+    const updatesE = radarChart.draw(data, editable === true ? true : false)
 
-    clearLegend(parentSelector);
-    drawLegend(parentSelector, legendTitles, width);
+    clearLegend(parentSelector)
+    drawLegend(parentSelector, legendTitles, width)
 
-    return updatesE.debounce(300).map(function (data) {
-      var scaledRatings = data.map(function (rating) {
-        return { title: rating.title, value: Math.round(rating.value * 10) };
-      });
-      return mapDisplayDataToSerial(scaledRatings);
-    });
+    return updatesE
+      .debounce(300)
+      .map(data => {
+        const scaledRatings = data.map(rating => ({ title: rating.title, value: Math.round(rating.value*10) }))
+        return mapDisplayDataToSerial(scaledRatings)
+      })
 
     function clearLegend(container) {
-      d3.select(container).selectAll('svg').select('.radar-legend').remove();
+      d3.select(container)
+        .selectAll('svg')
+        .select('.radar-legend')
+        .remove()
     }
     // TODO allow animating legend updates
     function drawLegend(container, legendTitles, width) {
-      var legendGroup = d3.select(container).selectAll('svg').append('g').attr('class', 'radar-legend').attr('transform', svgTranslation(width - 70, 10));
+      var legendGroup = d3.select(container)
+	    .selectAll('svg')
+	    .append('g')
+            .attr('class', 'radar-legend')
+            .attr('transform', svgTranslation(width - 70, 10))
 
-      drawTitle(legendGroup);
-      drawBoxes(legendGroup);
-      drawEntries(legendGroup);
+      drawTitle(legendGroup)
+      drawBoxes(legendGroup)
+      drawEntries(legendGroup)
 
       function drawTitle(group) {
-        group.append("text").attr("class", "legend-title").text("Raters");
+        group.append("text")
+          .attr("class", "legend-title")
+          .text("Raters")
       }
       function drawBoxes(group) {
-        group.selectAll('rect').data(legendTitles).enter().append("rect").attr("x", 3).attr("y", function (d, i) {
-          return i * 20 + 8;
-        }).attr("width", 10).attr("height", 10).style("fill", function (d, i) {
-          return colorScale(i);
-        });
+        group.selectAll('rect')
+          .data(legendTitles)
+          .enter()
+          .append("rect")
+          .attr("x", 3)
+          .attr("y", (d, i) => i * 20 + 8)
+          .attr("width", 10)
+          .attr("height", 10)
+          .style("fill", (d, i) => colorScale(i))
       }
       function drawEntries(group) {
-        group.selectAll('.legend-entry').data(legendTitles).enter().append("text").attr("x", 18).attr("y", function (d, i) {
-          return i * 20 + 17;
-        }).attr("class", "legend-entry").text(function (d) {
-          return d;
-        });
+        group.selectAll('.legend-entry')
+          .data(legendTitles)
+          .enter()
+          .append("text")
+          .attr("x", 18)
+          .attr("y", (d, i) => i * 20 + 17)
+          .attr("class", "legend-entry")
+          .text(d => d)
       }
     }
     function svgTranslation(x, y) {
-      return 'translate(' + x + ',' + y + ')';
+      return `translate(${x},${y})`
     }
   }
 }
 
 function jQueryAjaxSetup() {
-  $.ajaxSetup({ dataType: 'json', contentType: 'application/json; charset=utf-8' });
+  $.ajaxSetup({dataType: 'json', contentType: 'application/json; charset=utf-8'})
   $.ajaxPrefilter('json', function (opts, originalOpts) {
-    if (opts.type.toLowerCase() !== 'get' && typeof originalOpts.data !== 'string' && !(originalOpts.data instanceof FormData)) {
-      opts.data = JSON.stringify(originalOpts.data);
+    if (opts.type.toLowerCase() !== 'get' &&
+        typeof originalOpts.data !== 'string' &&
+        !(originalOpts.data instanceof FormData)) {
+      opts.data = JSON.stringify(originalOpts.data)
     }
-  });
+  })
 }
